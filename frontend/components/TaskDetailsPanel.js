@@ -7,6 +7,12 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
   const [editedTask, setEditedTask] = useState(task);
   const [loading, setLoading] = useState(false);
 
+  // Task-specific chatbot state
+  const [chatInput, setChatInput] = useState('');
+  const [lastResponse, setLastResponse] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [taskConversationHistory, setTaskConversationHistory] = useState([]);
+
   if (!task) return null;
 
   const handleSave = async () => {
@@ -85,6 +91,55 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
     }
   };
 
+  const handleTaskChatSubmit = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+
+    // Always include task context for this chatbot
+    const contextMessage = `[Task Context: "${task.title}" - ${task.description} - Status: ${task.status}, Priority: ${task.priority}]\nUser Question: ${userMessage}`;
+
+    const updatedHistory = [
+      ...taskConversationHistory,
+      { role: 'user', content: contextMessage }
+    ];
+    setTaskConversationHistory(updatedHistory);
+
+    setChatLoading(true);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const response = await fetch(`${API_URL}/conversation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationHistory: updatedHistory
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const aiResponse = data.response || 'No response from AI';
+        setLastResponse(aiResponse);
+
+        // Add AI response to conversation history
+        setTaskConversationHistory(prev => [
+          ...prev,
+          { role: 'ai', content: aiResponse }
+        ]);
+      } else {
+        const errorData = await response.json();
+        setLastResponse(errorData.error || 'Failed to get response. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error chatting:', error);
+      setLastResponse('Failed to connect to AI. Please try again.');
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="task-details-overlay" onClick={onClose}></div>
@@ -94,7 +149,10 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
           <button onClick={onClose} className="task-details-close">✕</button>
         </div>
 
-        <div className="task-details-content">
+        {/* Split into two sections: Task Details (top) and Chatbot (bottom) */}
+        <div className="task-details-split-container">
+          {/* Top Section: Task Details */}
+          <div className="task-details-content task-details-scrollable">
           {/* Title */}
           <div className="task-detail-section">
             <label className="task-detail-label">Title</label>
@@ -208,7 +266,6 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
               </div>
             </div>
           </div>
-        </div>
 
         {/* Action Buttons */}
         <div className="task-details-actions">
@@ -247,6 +304,43 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
               </button>
             </>
           )}
+        </div>
+          </div>
+          {/* End of Top Section: Task Details */}
+
+          {/* Bottom Section: Task-Specific Chatbot */}
+          <div className="task-chatbot-section">
+            <div className="task-chatbot-header">
+              <span className="task-chatbot-title">💬 Ask about this task</span>
+            </div>
+
+            {/* Last Response Display */}
+            {lastResponse && (
+              <div className="task-chatbot-response">
+                <div className="task-chatbot-response-label">AI Response:</div>
+                <div className="task-chatbot-response-text">{lastResponse}</div>
+              </div>
+            )}
+
+            {/* Chat Input Form */}
+            <form onSubmit={handleTaskChatSubmit} className="task-chatbot-form">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Ask about this task..."
+                className="task-chatbot-input"
+                disabled={chatLoading}
+              />
+              <button
+                type="submit"
+                disabled={chatLoading || !chatInput.trim()}
+                className="task-chatbot-send-button"
+              >
+                {chatLoading ? '⋯' : '→'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </>

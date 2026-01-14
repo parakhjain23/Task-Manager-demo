@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import TaskList from '../components/TaskList';
-import ChatInterface from '../components/ChatInterface';
 import TeamManager from '../components/TeamManager';
 import TaskDetailsPanel from '../components/TaskDetailsPanel';
 import './globals.css';
@@ -13,8 +12,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentView, setCurrentView] = useState('tasks');
-  const [customViewName, setCustomViewName] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
+
+  // Chatbot state
+  const [chatInput, setChatInput] = useState('');
+  const [lastResponse, setLastResponse] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState([]);
 
   const fetchTasks = async () => {
     try {
@@ -41,24 +45,13 @@ export default function Home() {
     fetchTasks();
   }, []);
 
-  const handleTaskCreated = (newTask) => {
-    setTasks(prev => [newTask, ...prev]);
-  };
-
   const handleViewChange = (view) => {
     setCurrentView(view);
-    setCustomViewName(null);
 
     // Refetch all tasks when switching to 'tasks' or 'pending' view
     if (view === 'tasks' || view === 'pending') {
       fetchTasks();
     }
-  };
-
-  const handleCustomView = (viewName, filteredTasks) => {
-    setTasks(filteredTasks);
-    setCustomViewName(viewName);
-    setCurrentView('custom');
   };
 
   const handleTaskClick = (task) => {
@@ -76,6 +69,63 @@ export default function Home() {
     }
   };
 
+  const handleChatSubmit = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+
+    // Build conversation history with task context if available
+    let contextMessage = userMessage;
+    if (selectedTask) {
+      contextMessage = `[Task Context: "${selectedTask.title}" - ${selectedTask.status}, Priority: ${selectedTask.priority}]\nUser: ${userMessage}`;
+    }
+
+    const updatedHistory = [
+      ...conversationHistory,
+      { role: 'user', content: contextMessage }
+    ];
+    setConversationHistory(updatedHistory);
+
+    setChatLoading(true);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const response = await fetch(`${API_URL}/conversation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationHistory: updatedHistory
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const aiResponse = data.response || 'No response from AI';
+        setLastResponse(aiResponse);
+
+        // Add AI response to conversation history
+        setConversationHistory(prev => [
+          ...prev,
+          { role: 'ai', content: aiResponse }
+        ]);
+
+        // If a task was created, refresh the task list
+        if (data.shouldCreateTask && data.task) {
+          setTasks(prev => [data.task, ...prev]);
+        }
+      } else {
+        const errorData = await response.json();
+        setLastResponse(errorData.error || 'Failed to get response. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error chatting:', error);
+      setLastResponse('Failed to connect to AI. Please try again.');
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   const pendingTasks = tasks.filter(task => task.status === 'pending');
 
   const renderContent = () => {
@@ -89,44 +139,22 @@ export default function Home() {
 
     if (currentView === 'pending') {
       return (
-        <>
-          <div className="main-grid">
-            <TaskList
-              tasks={pendingTasks}
-              loading={loading}
-              error={error}
-              onTaskClick={handleTaskClick}
-            />
-            <ChatInterface onTaskCreated={handleTaskCreated} onCustomView={handleCustomView} />
-          </div>
-        </>
-      );
-    }
-
-    if (currentView === 'custom') {
-      return (
-        <div className="main-grid">
-          <TaskList
-            tasks={tasks}
-            loading={loading}
-            error={error}
-            onTaskClick={handleTaskClick}
-          />
-          <ChatInterface onTaskCreated={handleTaskCreated} onCustomView={handleCustomView} />
-        </div>
-      );
-    }
-
-    return (
-      <div className="main-grid">
         <TaskList
-          tasks={tasks}
+          tasks={pendingTasks}
           loading={loading}
           error={error}
           onTaskClick={handleTaskClick}
         />
-        <ChatInterface onTaskCreated={handleTaskCreated} onCustomView={handleCustomView} />
-      </div>
+      );
+    }
+
+    return (
+      <TaskList
+        tasks={tasks}
+        loading={loading}
+        error={error}
+        onTaskClick={handleTaskClick}
+      />
     );
   };
 
@@ -135,7 +163,6 @@ export default function Home() {
       <Sidebar
         currentView={currentView}
         onViewChange={handleViewChange}
-        onCustomViewRequest={handleCustomView}
       />
 
       <div className="container">
@@ -145,13 +172,42 @@ export default function Home() {
               {currentView === 'members' && 'Team Members'}
               {currentView === 'pending' && 'My Pending Tasks'}
               {currentView === 'tasks' && 'All Tasks'}
-              {currentView === 'custom' && (customViewName || 'Custom View')}
             </h1>
           </div>
-          <div className="header-badge">AI Assistant</div>
+          <div className="header-badge">Task-specific AI Assistant</div>
         </div>
 
         {renderContent()}
+
+        {/* Bottom Center Chatbot */}
+        <div className="bottom-chatbot-container">
+          {/* Last Response Display */}
+          {lastResponse && (
+            <div className="bottom-chatbot-response">
+              <div className="bottom-chatbot-response-label">AI Response:</div>
+              <div className="bottom-chatbot-response-text">{lastResponse}</div>
+            </div>
+          )}
+
+          {/* Chat Input Form */}
+          <form onSubmit={handleChatSubmit} className="bottom-chatbot-form">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder={selectedTask ? `Ask about "${selectedTask.title}"...` : "Ask about tasks..."}
+              className="bottom-chatbot-input"
+              disabled={chatLoading}
+            />
+            <button
+              type="submit"
+              disabled={chatLoading || !chatInput.trim()}
+              className="bottom-chatbot-send-button"
+            >
+              {chatLoading ? '⋯' : '→'}
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Task Details Panel */}
