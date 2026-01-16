@@ -239,9 +239,104 @@ Examples:
   }
 }
 
+/**
+ * Classify a log to determine if it should become a task
+ * This runs asynchronously in the background
+ */
+async function classifyLog(logData, teamMembers) {
+  try {
+    const { userInput, aiResponse } = logData;
+
+    const systemPrompt = `You are an AI classifier for a task management system.
+Your job is to analyze user inputs and AI responses to determine if a task should be created.
+
+A log should become a TASK if:
+- User explicitly requested task creation
+- User described work that needs to be done
+- User mentioned a deliverable, bug fix, feature, or action item
+- The conversation led to agreeing on something that needs to be done
+
+A log should NOT become a task if:
+- User was just chatting or asking questions
+- User was requesting information or clarification
+- User was giving general feedback without specific action
+- The conversation was exploratory or informational
+
+Respond with JSON:
+{
+  "isTask": boolean,
+  "confidence": number (0-1),
+  "reasoning": "brief explanation",
+  "taskData": {
+    "title": "concise title (max 100 chars)",
+    "description": "detailed description",
+    "priority": "low|medium|high",
+    "tags": ["tag1", "tag2"]
+  } or null if isTask is false
+}`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt
+        },
+        {
+          role: "user",
+          content: `User Input: "${userInput}"\n\nAI Response: "${aiResponse}"\n\nClassify this interaction.`
+        }
+      ],
+      temperature: 0.3,
+      response_format: { type: "json_object" }
+    });
+
+    const result = JSON.parse(completion.choices[0].message.content);
+
+    // If it should be a task, assign team member
+    if (result.isTask && result.taskData && result.confidence >= 0.7) {
+      const teamMembersInfo = teamMembers.map(member =>
+        `- ${member.name}: Skills: ${member.skills.join(', ')}, Availability: ${member.availability}, Workload: ${member.currentWorkload}`
+      ).join('\n');
+
+      const assignmentPrompt = `Given this task: ${JSON.stringify(result.taskData)}
+
+Available team members:
+${teamMembersInfo}
+
+Return JSON with the best assignedTo (exact name match) based on skills and availability.`;
+
+      const assignmentCompletion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You assign tasks to team members based on skills. Respond with JSON only."
+          },
+          {
+            role: "user",
+            content: assignmentPrompt
+          }
+        ],
+        temperature: 0.3,
+        response_format: { type: "json_object" }
+      });
+
+      const assignment = JSON.parse(assignmentCompletion.choices[0].message.content);
+      result.taskData.assignedTo = assignment.assignedTo;
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Error classifying log:', error);
+    throw new Error(`Failed to classify log: ${error.message}`);
+  }
+}
+
 module.exports = {
   analyzeTaskInput,
   generateChatResponse,
   detectTaskIntent,
-  analyzeViewRequest
+  analyzeViewRequest,
+  classifyLog
 };

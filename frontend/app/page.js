@@ -3,16 +3,19 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import TaskList from '../components/TaskList';
+import LogsList from '../components/LogsList';
 import TeamManager from '../components/TeamManager';
 import TaskDetailsPanel from '../components/TaskDetailsPanel';
 import './globals.css';
 
 export default function Home() {
   const [tasks, setTasks] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentView, setCurrentView] = useState('tasks');
+  const [currentView, setCurrentView] = useState('logs');
   const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedLog, setSelectedLog] = useState(null);
 
   // Chatbot state
   const [chatInput, setChatInput] = useState('');
@@ -24,7 +27,7 @@ export default function Home() {
     try {
       setLoading(true);
       setError(null);
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${API_URL}/tasks`);
 
       if (!response.ok) {
@@ -41,21 +44,56 @@ export default function Home() {
     }
   };
 
+  const fetchLogs = async (showLoading = true) => {
+    try {
+      if (showLoading) {
+        setLoading(true);
+      }
+      setError(null);
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const response = await fetch(`${API_URL}/logs`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch logs');
+      }
+
+      const data = await response.json();
+      setLogs(data);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching logs:', err);
+    } finally {
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  };
+
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    if (currentView === 'logs') {
+      fetchLogs(true); // Show loading on initial fetch
+      // Poll for updates every 5 seconds without showing loading state
+      const interval = setInterval(() => fetchLogs(false), 5000);
+      return () => clearInterval(interval);
+    } else if (currentView === 'tasks' || currentView === 'pending') {
+      fetchTasks();
+    }
+  }, [currentView]);
 
   const handleViewChange = (view) => {
     setCurrentView(view);
-
-    // Refetch all tasks when switching to 'tasks' or 'pending' view
-    if (view === 'tasks' || view === 'pending') {
-      fetchTasks();
-    }
   };
 
   const handleTaskClick = (task) => {
     setSelectedTask(task);
+  };
+
+  const handleLogClick = (log) => {
+    setSelectedLog(log);
+    // If the log has an associated task, we can optionally load it
+    if (log.taskId) {
+      setSelectedTask(log.taskId);
+    }
   };
 
   const handleTaskUpdate = (updatedTask, isDeleted = false) => {
@@ -110,9 +148,14 @@ export default function Home() {
           { role: 'ai', content: aiResponse }
         ]);
 
-        // If a task was created, refresh the task list
-        if (data.shouldCreateTask && data.task) {
-          setTasks(prev => [data.task, ...prev]);
+        // Add the new log to the logs list if we're in logs view
+        if (data.log && currentView === 'logs') {
+          setLogs(prev => [data.log, ...prev]);
+        }
+
+        // Refresh tasks if needed (background classifier will create tasks)
+        if (currentView === 'tasks' || currentView === 'pending') {
+          setTimeout(fetchTasks, 2000); // Delay to allow classifier to run
         }
       } else {
         const errorData = await response.json();
@@ -134,6 +177,17 @@ export default function Home() {
         <div className="full-width-content">
           <TeamManager />
         </div>
+      );
+    }
+
+    if (currentView === 'logs') {
+      return (
+        <LogsList
+          logs={logs}
+          loading={loading}
+          error={error}
+          onLogClick={handleLogClick}
+        />
       );
     }
 
@@ -169,12 +223,15 @@ export default function Home() {
         <div className="app-header">
           <div className="app-title">
             <h1>
+              {currentView === 'logs' && 'Conversation Logs'}
               {currentView === 'members' && 'Team Members'}
               {currentView === 'pending' && 'My Pending Tasks'}
               {currentView === 'tasks' && 'All Tasks'}
             </h1>
           </div>
-          <div className="header-badge">Task-specific AI Assistant</div>
+          <div className="header-badge">
+            {currentView === 'logs' ? 'AI Chat Assistant' : 'Task-specific AI Assistant'}
+          </div>
         </div>
 
         {renderContent()}
