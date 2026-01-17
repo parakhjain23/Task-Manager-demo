@@ -53,6 +53,7 @@ model Log {
   taskId              String?
   task                Task?    @relation("TaskLogs", fields: [taskId], references: [id])
   isClassified        Boolean  @default(false)
+  analyzedAt          DateTime?
   conversationContext String?
   selectedTaskId      String?
   selectedTask        Task?    @relation("SelectedTaskLogs", fields: [selectedTaskId], references: [id])

@@ -1,17 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Timeline from './Timeline';
 
 export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTask, setEditedTask] = useState(task);
+  const [fullTaskData, setFullTaskData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   // Task-specific chatbot state
   const [chatInput, setChatInput] = useState('');
   const [lastResponse, setLastResponse] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [taskConversationHistory, setTaskConversationHistory] = useState([]);
+
+  useEffect(() => {
+    const fetchFullDetails = async () => {
+      if (!task?.id) return;
+
+      setDetailsLoading(true);
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+        const response = await fetch(`${API_URL}/tasks/${task.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setFullTaskData(data);
+        }
+      } catch (error) {
+        console.error('Error fetching task details:', error);
+      } finally {
+        setDetailsLoading(false);
+      }
+    };
+
+    fetchFullDetails();
+  }, [task?.id]);
 
   if (!task) return null;
 
@@ -286,6 +311,20 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
                 </div>
               </div>
             </div>
+
+            {/* Source Activity Timeline */}
+            {fullTaskData?.logs && fullTaskData.logs.length > 0 && (
+              <div className="task-detail-section" style={{ marginTop: '24px' }}>
+                <label className="task-detail-label">Task Origin Timeline</label>
+                <Timeline
+                  createdAt={fullTaskData.logs[0].createdAt}
+                  analyzedAt={fullTaskData.logs[0].analyzedAt}
+                  isClassified={fullTaskData.logs[0].isClassified}
+                  isTask={fullTaskData.logs[0].isTask}
+                  taskTitle={task.title}
+                />
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="task-details-actions">

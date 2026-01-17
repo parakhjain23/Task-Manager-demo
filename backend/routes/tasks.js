@@ -190,4 +190,30 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/tasks/:id
+ * Get a specific task with its source logs
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const task = await Task.findUnique({
+      where: { id: req.params.id },
+      include: {
+        logs: {
+          orderBy: { createdAt: 'asc' }
+        }
+      }
+    });
+
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    res.json(task);
+  } catch (error) {
+    console.error('Error fetching task details:', error);
+    res.status(500).json({ error: 'Failed to fetch task details' });
+  }
+});
+
 module.exports = router;

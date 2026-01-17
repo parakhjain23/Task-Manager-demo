@@ -164,7 +164,8 @@ class LogClassifier {
         isClassified: true,
         isTask: isTask,
         taskId: createdTaskId,
-        aiResponse: aiResponseText || log.aiResponse
+        aiResponse: aiResponseText || log.aiResponse,
+        analyzedAt: new Date()
       }
     });
   }

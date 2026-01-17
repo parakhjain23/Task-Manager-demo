@@ -6,6 +6,7 @@ import TaskList from '../components/TaskList';
 import LogsList from '../components/LogsList';
 import TeamManager from '../components/TeamManager';
 import TaskDetailsPanel from '../components/TaskDetailsPanel';
+import LogDetailsPanel from '../components/LogDetailsPanel';
 import './globals.css';
 
 export default function Home() {
@@ -22,6 +23,9 @@ export default function Home() {
   const [chatLoading, setChatLoading] = useState(false);
   const [conversationHistory, setConversationHistory] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+
 
   const fetchTasks = async () => {
     try {
@@ -99,10 +103,6 @@ export default function Home() {
 
   const handleLogClick = (log) => {
     setSelectedLog(log);
-    // If the log has an associated task, we can optionally load it
-    if (log.taskId) {
-      setSelectedTask(log.taskId);
-    }
   };
 
   const handleTaskUpdate = (updatedTask, isDeleted = false) => {
@@ -181,6 +181,49 @@ export default function Home() {
 
   const pendingTasks = filteredTasks.filter(task => task.status === 'pending');
 
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't navigate if user is typing in an input or textarea
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        if (e.key === 'Escape') {
+          document.activeElement.blur();
+        }
+        return;
+      }
+
+      const items = currentView === 'logs' ? filteredLogs : (currentView === 'pending' ? pendingTasks : filteredTasks);
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIndex(prev => (prev < items.length - 1 ? prev + 1 : prev));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIndex(prev => (prev > 0 ? prev - 1 : 0));
+      } else if (e.key === 'Enter') {
+        if (activeIndex >= 0 && activeIndex < items.length) {
+          const selectedItem = items[activeIndex];
+          if (currentView === 'logs') {
+            handleLogClick(selectedItem);
+          } else {
+            handleTaskClick(selectedItem);
+          }
+        }
+      } else if (e.key === 'Escape') {
+        if (selectedLog) setSelectedLog(null);
+        if (selectedTask) setSelectedTask(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentView, filteredLogs, filteredTasks, pendingTasks, activeIndex]);
+
+  // Reset active index when view or search changes
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [currentView, searchQuery]);
+
   const renderContent = () => {
     if (currentView === 'members') {
       return (
@@ -197,6 +240,7 @@ export default function Home() {
           loading={loading}
           error={error}
           onLogClick={handleLogClick}
+          activeIndex={activeIndex}
         />
       );
     }
@@ -208,6 +252,7 @@ export default function Home() {
           loading={loading}
           error={error}
           onTaskClick={handleTaskClick}
+          activeIndex={activeIndex}
         />
       );
     }
@@ -218,6 +263,7 @@ export default function Home() {
         loading={loading}
         error={error}
         onTaskClick={handleTaskClick}
+        activeIndex={activeIndex}
       />
     );
   };
@@ -233,21 +279,22 @@ export default function Home() {
       <div className="container">
         <div className="app-header">
           <div className="app-title">
-            <h1>
-              {currentView === 'logs' && 'Work Items'}
-              {currentView === 'members' && 'Team Members'}
-              {currentView === 'pending' && 'My Pending Tasks'}
-              {currentView === 'tasks' && 'All Tasks'}
-              {currentView === 'deleted' && 'Deleted Items'}
-              {currentView === 'custom' && customViewTitle}
-            </h1>
-          </div>
-
-          {currentView === 'deleted' && (
-            <div className="deleted-info-banner">
-              🗑️ These tasks are in your trash. You can recover them to bring them back to your task list.
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <h1>
+                {currentView === 'logs' && 'Work Items'}
+                {currentView === 'members' && 'Team Members'}
+                {currentView === 'pending' && 'My Pending Tasks'}
+                {currentView === 'tasks' && 'All Tasks'}
+                {currentView === 'deleted' && 'Deleted Items'}
+                {currentView === 'custom' && customViewTitle}
+              </h1>
+              {currentView === 'deleted' && (
+                <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '400', marginTop: '4px' }}>
+                  Items here can be recovered to your active list.
+                </span>
+              )}
             </div>
-          )}
+          </div>
 
           <div className="search-container">
             <span className="search-icon">🔍</span>
@@ -275,27 +322,29 @@ export default function Home() {
 
         {renderContent()}
 
-        {/* Bottom Center Chatbot */}
-        <div className="bottom-chatbot-container">
-          {/* Chat Input Form */}
-          <form onSubmit={handleChatSubmit} className="bottom-chatbot-form">
-            <input
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder={selectedTask ? `Log message about "${selectedTask.title}"...` : "Log a message..."}
-              className="bottom-chatbot-input"
-              disabled={chatLoading}
-            />
-            <button
-              type="submit"
-              disabled={chatLoading || !chatInput.trim()}
-              className="bottom-chatbot-send-button"
-            >
-              {chatLoading ? '⋯' : '→'}
-            </button>
-          </form>
-        </div>
+        {/* Bottom Center Chatbot - Only in Logs view */}
+        {currentView === 'logs' && (
+          <div className="bottom-chatbot-container">
+            {/* Chat Input Form */}
+            <form onSubmit={handleChatSubmit} className="bottom-chatbot-form">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Log a message..."
+                className="bottom-chatbot-input"
+                disabled={chatLoading}
+              />
+              <button
+                type="submit"
+                disabled={chatLoading || !chatInput.trim()}
+                className="bottom-chatbot-send-button"
+              >
+                {chatLoading ? '⋯' : '→'}
+              </button>
+            </form>
+          </div>
+        )}
       </div>
 
       {/* Task Details Panel */}
@@ -304,6 +353,14 @@ export default function Home() {
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
           onUpdate={handleTaskUpdate}
+        />
+      )}
+
+      {/* Log Details Panel */}
+      {selectedLog && (
+        <LogDetailsPanel
+          log={selectedLog}
+          onClose={() => setSelectedLog(null)}
         />
       )}
     </div>
