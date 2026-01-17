@@ -26,7 +26,7 @@ export default function TaskList({ tasks, loading, error, onTaskClick }) {
         <div className="empty-state">
           <div className="empty-state-icon">📝</div>
           <div className="empty-state-text">
-            No tasks yet. Create your first task using the AI chat assistant!
+            No tasks found. Try a different search or create a new task!
           </div>
         </div>
       </div>
@@ -50,7 +50,7 @@ export default function TaskList({ tasks, loading, error, onTaskClick }) {
       </h2>
       {tasks.map((task) => (
         <div
-          key={task._id}
+          key={task.id}
           className="task-card"
           onClick={() => onTaskClick && onTaskClick(task)}
         >

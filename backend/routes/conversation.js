@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const Log = require('../models/Log');
+const Task = require('../models/Task');
+const TeamMember = require('../models/TeamMember');
+const { detectTaskIntent } = require('../services/aiService');
 
 /**
  * POST /api/conversation
- * Handle conversational interaction and create logs directly without AI
+ * Handle conversational interaction and detect task intent using AI
  */
 router.post('/', async (req, res) => {
   try {
@@ -14,25 +17,29 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Conversation history is required' });
     }
 
-    // Extract user's last message
+    // Extract user's last message for logging
     const lastUserMessage = conversationHistory
       .filter(msg => msg.role === 'user')
       .pop()?.content || '';
 
-    // Create a log directly in database
+    // Create a log in database IMMEDIATELY
+    // Setting isClassified: false will trigger the background LogClassifier service
     const log = await Log.create({
       data: {
         userInput: lastUserMessage,
-        isClassified: true, // Mark as classified since we're not using background processing
+        aiResponse: null, // Will be filled by background service
+        isClassified: false,
         isTask: false,
-        conversationContext: conversationHistory.length > 1 ? 'multi-turn' : 'single-turn',
+        taskId: null,
+        conversationContext: JSON.stringify(conversationHistory), // Store full history for AI context
         selectedTaskId: selectedTaskId || null
       }
     });
 
-    // Return response to user
+    // Return response to user immediately for fast UI feedback
     res.json({
-      log: log
+      log: log,
+      status: 'queued'
     });
 
   } catch (error) {

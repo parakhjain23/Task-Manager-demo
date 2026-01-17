@@ -7,7 +7,7 @@ const { analyzeViewRequest } = require('../services/aiService');
  * Build Prisma filter from AI-analyzed criteria
  */
 function buildPrismaFilter(filters) {
-  const prismaFilter = {};
+  const prismaFilter = { isDeleted: false };
 
   // Status filter (Map in-progress to in_progress)
   if (filters.status) {

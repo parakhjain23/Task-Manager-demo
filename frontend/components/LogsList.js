@@ -4,8 +4,8 @@ export default function LogsList({ logs, loading, error, onLogClick }) {
   if (loading) {
     return (
       <div className="task-list">
-        <h2>💬 Conversation Logs</h2>
-        <div className="loading">✨ Loading logs...</div>
+        <h2>💬 Work Items</h2>
+        <div className="loading">✨ Loading items...</div>
       </div>
     );
   }
@@ -13,7 +13,7 @@ export default function LogsList({ logs, loading, error, onLogClick }) {
   if (error) {
     return (
       <div className="task-list">
-        <h2>💬 Conversation Logs</h2>
+        <h2>💬 Work Items</h2>
         <div className="error">⚠️ {error}</div>
       </div>
     );
@@ -22,11 +22,11 @@ export default function LogsList({ logs, loading, error, onLogClick }) {
   if (logs.length === 0) {
     return (
       <div className="task-list">
-        <h2>💬 Conversation Logs</h2>
+        <h2>💬 Work Items</h2>
         <div className="empty-state">
           <div className="empty-state-icon">💭</div>
           <div className="empty-state-text">
-            No conversation logs yet. Start chatting with the AI assistant!
+            No items found. Try a different search or start a new conversation!
           </div>
         </div>
       </div>
@@ -51,12 +51,12 @@ export default function LogsList({ logs, loading, error, onLogClick }) {
   return (
     <div className="task-list">
       <h2>
-        💬 Conversation Logs
+        💬 Work Items
         <span className="task-count">{logs.length}</span>
       </h2>
       {logs.map((log) => (
         <div
-          key={log._id}
+          key={log.id}
           className="task-card log-card"
           onClick={() => onLogClick && onLogClick(log)}
         >

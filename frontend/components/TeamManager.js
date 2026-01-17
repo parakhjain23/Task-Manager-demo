@@ -75,7 +75,7 @@ export default function TeamManager() {
       });
 
       if (response.ok) {
-        setTeamMembers(prev => prev.filter(member => member._id !== id));
+        setTeamMembers(prev => prev.filter(member => member.id !== id));
       } else {
         alert('Failed to delete team member');
       }
@@ -163,7 +163,7 @@ export default function TeamManager() {
       ) : (
         <div className="team-list">
           {teamMembers.map((member) => (
-            <div key={member._id} className="team-card">
+            <div key={member.id} className="team-card">
               <div className="team-card-header">
                 <div>
                   <div className="team-name">{member.name}</div>
@@ -172,7 +172,7 @@ export default function TeamManager() {
                   </div>
                 </div>
                 <button
-                  onClick={() => handleDelete(member._id, member.name)}
+                  onClick={() => handleDelete(member.id, member.name)}
                   className="btn-delete"
                   title="Remove team member"
                 >

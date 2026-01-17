@@ -139,7 +139,7 @@ router.put('/:id', async (req, res) => {
  * Helper function to build Prisma filter from saved filters
  */
 function buildPrismaFilter(filters) {
-  const prismaFilter = {};
+  const prismaFilter = { isDeleted: false };
 
   if (filters.status) {
     prismaFilter.status = filters.status === 'in-progress' ? 'in_progress' : filters.status;

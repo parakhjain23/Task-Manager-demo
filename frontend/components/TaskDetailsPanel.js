@@ -19,7 +19,7 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
     setLoading(true);
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const response = await fetch(`${API_URL}/tasks/${task._id}`, {
+      const response = await fetch(`${API_URL}/tasks/${task.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editedTask)
@@ -41,11 +41,10 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
-
+    // Direct delete, no alert as requested
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const response = await fetch(`${API_URL}/tasks/${task._id}`, {
+      const response = await fetch(`${API_URL}/tasks/${task.id}`, {
         method: 'DELETE'
       });
 
@@ -58,6 +57,27 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
     } catch (error) {
       console.error('Error deleting task:', error);
       alert('Failed to delete task. Please try again.');
+    }
+  };
+
+  const handleRecover = async () => {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const response = await fetch(`${API_URL}/tasks/${task.id}/recover`, {
+        method: 'PUT'
+      });
+
+      if (response.ok) {
+        const updatedTask = await response.json();
+        // Since it's no longer deleted, we remove it from the deleted view
+        if (onUpdate) onUpdate(null, true);
+        onClose();
+      } else {
+        alert('Failed to recover task');
+      }
+    } catch (error) {
+      console.error('Error recovering task:', error);
+      alert('Failed to recover task. Please try again.');
     }
   };
 
@@ -153,158 +173,169 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
         <div className="task-details-split-container">
           {/* Top Section: Task Details */}
           <div className="task-details-content task-details-scrollable">
-          {/* Title */}
-          <div className="task-detail-section">
-            <label className="task-detail-label">Title</label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editedTask.title}
-                onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
-                className="task-detail-input"
-              />
-            ) : (
-              <div className="task-detail-value task-title-large">{task.title}</div>
-            )}
-          </div>
-
-          {/* Description */}
-          <div className="task-detail-section">
-            <label className="task-detail-label">Description</label>
-            {isEditing ? (
-              <textarea
-                value={editedTask.description}
-                onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
-                className="task-detail-textarea"
-                rows={4}
-              />
-            ) : (
-              <div className="task-detail-value">{task.description}</div>
-            )}
-          </div>
-
-          {/* Status and Priority Row */}
-          <div className="task-detail-row">
+            {/* Title */}
             <div className="task-detail-section">
-              <label className="task-detail-label">Status</label>
+              <label className="task-detail-label">Title</label>
               {isEditing ? (
-                <select
-                  value={editedTask.status}
-                  onChange={(e) => setEditedTask({ ...editedTask, status: e.target.value })}
-                  className="task-detail-select"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                </select>
+                <input
+                  type="text"
+                  value={editedTask.title}
+                  onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
+                  className="task-detail-input"
+                />
               ) : (
-                <div className="task-detail-badge" style={{ backgroundColor: getStatusColor(task.status) }}>
-                  {task.status}
-                </div>
+                <div className="task-detail-value task-title-large">{task.title}</div>
               )}
             </div>
 
+            {/* Description */}
             <div className="task-detail-section">
-              <label className="task-detail-label">Priority</label>
+              <label className="task-detail-label">Description</label>
               {isEditing ? (
-                <select
-                  value={editedTask.priority}
-                  onChange={(e) => setEditedTask({ ...editedTask, priority: e.target.value })}
-                  className="task-detail-select"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
+                <textarea
+                  value={editedTask.description}
+                  onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
+                  className="task-detail-textarea"
+                  rows={4}
+                />
               ) : (
-                <div className="task-detail-badge" style={{ backgroundColor: getPriorityColor(task.priority) }}>
-                  {task.priority}
-                </div>
+                <div className="task-detail-value">{task.description}</div>
               )}
             </div>
-          </div>
 
-          {/* Assigned To */}
-          <div className="task-detail-section">
-            <label className="task-detail-label">Assigned To</label>
-            <div className="task-detail-value">
-              {task.assignedTo ? (
-                <span className="task-assignee">👤 {task.assignedTo}</span>
-              ) : (
-                <span className="task-unassigned">Unassigned</span>
-              )}
-            </div>
-          </div>
+            {/* Status and Priority Row */}
+            <div className="task-detail-row">
+              <div className="task-detail-section">
+                <label className="task-detail-label">Status</label>
+                {isEditing ? (
+                  <select
+                    value={editedTask.status}
+                    onChange={(e) => setEditedTask({ ...editedTask, status: e.target.value })}
+                    className="task-detail-select"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                ) : (
+                  <div className="task-detail-badge" style={{ backgroundColor: getStatusColor(task.status) }}>
+                    {task.status}
+                  </div>
+                )}
+              </div>
 
-          {/* Tags */}
-          <div className="task-detail-section">
-            <label className="task-detail-label">Tags</label>
-            <div className="task-tags-container">
-              {task.tags && task.tags.length > 0 ? (
-                task.tags.map((tag, index) => (
-                  <span key={index} className="task-tag">{tag}</span>
-                ))
-              ) : (
-                <span className="task-no-tags">No tags</span>
-              )}
-            </div>
-          </div>
-
-          {/* Dates Row */}
-          <div className="task-detail-row">
-            <div className="task-detail-section">
-              <label className="task-detail-label">Created</label>
-              <div className="task-detail-value task-date">
-                📅 {formatDate(task.createdAt)}
+              <div className="task-detail-section">
+                <label className="task-detail-label">Priority</label>
+                {isEditing ? (
+                  <select
+                    value={editedTask.priority}
+                    onChange={(e) => setEditedTask({ ...editedTask, priority: e.target.value })}
+                    className="task-detail-select"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                ) : (
+                  <div className="task-detail-badge" style={{ backgroundColor: getPriorityColor(task.priority) }}>
+                    {task.priority}
+                  </div>
+                )}
               </div>
             </div>
 
+            {/* Assigned To */}
             <div className="task-detail-section">
-              <label className="task-detail-label">Due Date</label>
-              <div className="task-detail-value task-date">
-                {task.dueDate ? `📅 ${formatDate(task.dueDate)}` : 'Not set'}
+              <label className="task-detail-label">Assigned To</label>
+              <div className="task-detail-value">
+                {task.assignedTo ? (
+                  <span className="task-assignee">👤 {task.assignedTo}</span>
+                ) : (
+                  <span className="task-unassigned">Unassigned</span>
+                )}
               </div>
             </div>
-          </div>
 
-        {/* Action Buttons */}
-        <div className="task-details-actions">
-          {isEditing ? (
-            <>
-              <button
-                onClick={() => {
-                  setEditedTask(task);
-                  setIsEditing(false);
-                }}
-                className="task-action-button secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="task-action-button primary"
-              >
-                {loading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={handleDelete}
-                className="task-action-button danger"
-              >
-                Delete Task
-              </button>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="task-action-button primary"
-              >
-                Edit Task
-              </button>
-            </>
-          )}
-        </div>
+            {/* Tags */}
+            <div className="task-detail-section">
+              <label className="task-detail-label">Tags</label>
+              <div className="task-tags-container">
+                {task.tags && task.tags.length > 0 ? (
+                  task.tags.map((tag, index) => (
+                    <span key={index} className="task-tag">{tag}</span>
+                  ))
+                ) : (
+                  <span className="task-no-tags">No tags</span>
+                )}
+              </div>
+            </div>
+
+            {/* Dates Row */}
+            <div className="task-detail-row">
+              <div className="task-detail-section">
+                <label className="task-detail-label">Created</label>
+                <div className="task-detail-value task-date">
+                  📅 {formatDate(task.createdAt)}
+                </div>
+              </div>
+
+              <div className="task-detail-section">
+                <label className="task-detail-label">Due Date</label>
+                <div className="task-detail-value task-date">
+                  {task.dueDate ? `📅 ${formatDate(task.dueDate)}` : 'Not set'}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="task-details-actions">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditedTask(task);
+                      setIsEditing(false);
+                    }}
+                    className="task-action-button secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="task-action-button primary"
+                  >
+                    {loading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {task.isDeleted ? (
+                    <button
+                      onClick={handleRecover}
+                      className="task-action-button primary"
+                    >
+                      Recover Task
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleDelete}
+                        className="task-action-button danger"
+                      >
+                        Delete Task
+                      </button>
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="task-action-button primary"
+                      >
+                        Edit Task
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           </div>
           {/* End of Top Section: Task Details */}
 

@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Priority {
@@ -38,6 +39,7 @@ model Task {
   status      TaskStatus @default(pending)
   createdAt   DateTime   @default(now())
   dueDate     DateTime?
+  isDeleted   Boolean    @default(false)
   
   logs        Log[]      @relation("TaskLogs")
   selectedIn  Log[]      @relation("SelectedTaskLogs")
@@ -46,6 +48,7 @@ model Task {
 model Log {
   id                  String   @id @default(uuid())
   userInput           String
+  aiResponse          String?
   isTask              Boolean  @default(false)
   taskId              String?
   task                Task?    @relation("TaskLogs", fields: [taskId], references: [id])

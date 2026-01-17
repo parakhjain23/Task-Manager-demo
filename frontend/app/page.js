@@ -16,18 +16,20 @@ export default function Home() {
   const [currentView, setCurrentView] = useState('logs');
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
+  const [customViewTitle, setCustomViewTitle] = useState('');
 
-  // Chatbot state
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [conversationHistory, setConversationHistory] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchTasks = async () => {
     try {
       setLoading(true);
       setError(null);
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const response = await fetch(`${API_URL}/tasks`);
+      const endpoint = currentView === 'deleted' ? 'tasks/deleted' : 'tasks';
+      const response = await fetch(`${API_URL}/${endpoint}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch tasks');
@@ -74,13 +76,21 @@ export default function Home() {
       // Poll for updates every 5 seconds without showing loading state
       const interval = setInterval(() => fetchLogs(false), 5000);
       return () => clearInterval(interval);
-    } else if (currentView === 'tasks' || currentView === 'pending') {
+    } else if (currentView === 'tasks' || currentView === 'pending' || currentView === 'deleted') {
       fetchTasks();
     }
   }, [currentView]);
 
   const handleViewChange = (view) => {
     setCurrentView(view);
+    setCustomViewTitle('');
+    setSearchQuery('');
+  };
+
+  const handleCustomViewRequest = (viewName, customTasks) => {
+    setCustomViewTitle(viewName);
+    setTasks(customTasks);
+    setCurrentView('custom');
   };
 
   const handleTaskClick = (task) => {
@@ -98,10 +108,10 @@ export default function Home() {
   const handleTaskUpdate = (updatedTask, isDeleted = false) => {
     if (isDeleted) {
       // Remove deleted task
-      setTasks(prev => prev.filter(t => t._id !== selectedTask._id));
+      setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
     } else if (updatedTask) {
       // Update the task in the list
-      setTasks(prev => prev.map(t => t._id === updatedTask._id ? updatedTask : t));
+      setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
       setSelectedTask(updatedTask);
     }
   };
@@ -154,7 +164,22 @@ export default function Home() {
     }
   };
 
-  const pendingTasks = tasks.filter(task => task.status === 'pending');
+  const filteredTasks = tasks.filter(task => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      task.title?.toLowerCase().includes(searchLower) ||
+      task.description?.toLowerCase().includes(searchLower) ||
+      task.tags?.some(tag => tag.toLowerCase().includes(searchLower)) ||
+      task.assignedTo?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const filteredLogs = logs.filter(log => {
+    const searchLower = searchQuery.toLowerCase();
+    return log.userInput?.toLowerCase().includes(searchLower);
+  });
+
+  const pendingTasks = filteredTasks.filter(task => task.status === 'pending');
 
   const renderContent = () => {
     if (currentView === 'members') {
@@ -168,7 +193,7 @@ export default function Home() {
     if (currentView === 'logs') {
       return (
         <LogsList
-          logs={logs}
+          logs={filteredLogs}
           loading={loading}
           error={error}
           onLogClick={handleLogClick}
@@ -189,7 +214,7 @@ export default function Home() {
 
     return (
       <TaskList
-        tasks={tasks}
+        tasks={filteredTasks}
         loading={loading}
         error={error}
         onTaskClick={handleTaskClick}
@@ -202,17 +227,46 @@ export default function Home() {
       <Sidebar
         currentView={currentView}
         onViewChange={handleViewChange}
+        onCustomViewRequest={handleCustomViewRequest}
       />
 
       <div className="container">
         <div className="app-header">
           <div className="app-title">
             <h1>
-              {currentView === 'logs' && 'Conversation Logs'}
+              {currentView === 'logs' && 'Work Items'}
               {currentView === 'members' && 'Team Members'}
               {currentView === 'pending' && 'My Pending Tasks'}
               {currentView === 'tasks' && 'All Tasks'}
+              {currentView === 'deleted' && 'Deleted Items'}
+              {currentView === 'custom' && customViewTitle}
             </h1>
+          </div>
+
+          {currentView === 'deleted' && (
+            <div className="deleted-info-banner">
+              🗑️ These tasks are in your trash. You can recover them to bring them back to your task list.
+            </div>
+          )}
+
+          <div className="search-container">
+            <span className="search-icon">🔍</span>
+            <input
+              type="text"
+              placeholder={`Search ${currentView === 'logs' ? 'work items' : 'tasks'}...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+            {searchQuery && (
+              <button
+                className="search-clear"
+                onClick={() => setSearchQuery('')}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
           <div className="header-badge">
             {currentView === 'logs' ? 'AI Chat Assistant' : 'Task-specific AI Assistant'}

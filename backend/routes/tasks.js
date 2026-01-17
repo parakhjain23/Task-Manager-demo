@@ -71,6 +71,7 @@ router.post('/create', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const tasks = await Task.findMany({
+      where: { isDeleted: false },
       orderBy: { createdAt: 'desc' }
     });
     res.json(tasks);
@@ -111,8 +112,52 @@ router.put('/:id', async (req, res) => {
 });
 
 /**
+ * GET /api/tasks/deleted
+ * Get all deleted tasks
+ */
+router.get('/deleted', async (req, res) => {
+  try {
+    const tasks = await Task.findMany({
+      where: { isDeleted: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(tasks);
+  } catch (error) {
+    console.error('Error fetching deleted tasks:', error);
+    res.status(500).json({ error: 'Failed to fetch deleted tasks' });
+  }
+});
+
+/**
+ * PUT /api/tasks/:id/recover
+ * Recover a deleted task
+ */
+router.put('/:id/recover', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const task = await Task.update({
+      where: { id },
+      data: { isDeleted: false }
+    });
+
+    // Increase workload if assigned
+    if (task.assignedTo) {
+      await TeamMember.update({
+        where: { name: task.assignedTo },
+        data: { currentWorkload: { increment: 1 } }
+      });
+    }
+
+    res.json(task);
+  } catch (error) {
+    console.error('Error recovering task:', error);
+    res.status(500).json({ error: 'Failed to recover task' });
+  }
+});
+
+/**
  * DELETE /api/tasks/:id
- * Delete a task
+ * Soft delete a task
  */
 router.delete('/:id', async (req, res) => {
   try {
@@ -124,8 +169,10 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    const task = await Task.delete({
-      where: { id }
+    // Performance soft delete
+    const task = await Task.update({
+      where: { id },
+      data: { isDeleted: true }
     });
 
     // Decrease workload of assigned team member
@@ -136,7 +183,7 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    res.json({ success: true, message: 'Task deleted' });
+    res.json({ success: true, message: 'Task marked as deleted' });
   } catch (error) {
     console.error('Error deleting task:', error);
     res.status(500).json({ error: 'Failed to delete task' });

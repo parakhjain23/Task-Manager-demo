@@ -1,7 +1,7 @@
 const Log = require('../models/Log');
 const Task = require('../models/Task');
 const TeamMember = require('../models/TeamMember');
-const { classifyLog } = require('./aiService');
+const { classifyLog, detectTaskIntent } = require('./aiService');
 
 /**
  * Background service that periodically processes unclassified logs
@@ -88,62 +88,85 @@ class LogClassifier {
    * Classify a single log and create a task if needed
    */
   async classifyAndCreateTask(log, teamMembers) {
-    // Call AI classification service
-    const classification = await classifyLog(
-      { userInput: log.userInput, aiResponse: log.aiResponse },
-      teamMembers
-    );
+    let result = null;
+    let isTask = false;
+    let taskData = null;
+    let aiResponseText = null;
 
-    console.log(`[LogClassifier] Log ${log.id} classification:`, {
-      isTask: classification.isTask,
-      confidence: classification.confidence,
-      reasoning: classification.reasoning
-    });
+    // Check if we have full conversation history for better context
+    let history = null;
+    if (log.conversationContext) {
+      try {
+        const parsed = JSON.parse(log.conversationContext);
+        if (Array.isArray(parsed)) {
+          history = parsed;
+        }
+      } catch (e) {
+        // Not JSON, treat as simple context string
+      }
+    }
 
-    // If it's a task with high confidence, create it
-    if (classification.isTask && classification.taskData && classification.confidence >= 0.7) {
+    if (history) {
+      // Use the more advanced conversational intent detector
+      const analysis = await detectTaskIntent(history, teamMembers);
+      isTask = analysis.shouldCreateTask;
+      taskData = analysis.taskData;
+      aiResponseText = analysis.response;
+    } else {
+      // Fallback to simple classification
+      const classification = await classifyLog(
+        { userInput: log.userInput, aiResponse: log.aiResponse },
+        teamMembers
+      );
+      isTask = classification.isTask && classification.confidence >= 0.7;
+      taskData = classification.taskData;
+      aiResponseText = classification.reasoning;
+    }
+
+    console.log(`[LogClassifier] Log ${log.id} classified as task: ${isTask}`);
+
+    let createdTaskId = null;
+
+    // If it's a task, create it
+    if (isTask && taskData) {
       // Set defaults for optional fields
-      const taskData = {
-        title: classification.taskData.title,
-        description: classification.taskData.description,
-        priority: classification.taskData.priority || 'medium',
-        tags: classification.taskData.tags || [],
-        assignedTo: classification.taskData.assignedTo || null,
-        dueDate: classification.taskData.dueDate ? new Date(classification.taskData.dueDate) : null,
+      const finalTaskData = {
+        title: taskData.title,
+        description: taskData.description,
+        priority: taskData.priority || 'medium',
+        tags: taskData.tags || [],
+        assignedTo: taskData.assignedTo || null,
+        dueDate: taskData.dueDate ? new Date(taskData.dueDate) : null,
         status: 'pending'
       };
 
       // Create the task
       const task = await Task.create({
-        data: taskData
+        data: finalTaskData
       });
 
+      createdTaskId = task.id;
       console.log(`[LogClassifier] Created task ${task.id} from log ${log.id}: "${task.title}"`);
 
       // Update assigned team member's workload
-      if (taskData.assignedTo) {
+      if (finalTaskData.assignedTo) {
         await TeamMember.update({
-          where: { name: taskData.assignedTo },
+          where: { name: finalTaskData.assignedTo },
           data: { currentWorkload: { increment: 1 } }
         });
       }
-
-      // Update log with task reference
-      await Log.update({
-        where: { id: log.id },
-        data: {
-          isTask: true,
-          taskId: task.id,
-          isClassified: true
-        }
-      });
-    } else {
-      // Mark log as classified
-      await Log.update({
-        where: { id: log.id },
-        data: { isClassified: true }
-      });
     }
+
+    // Update log with results
+    await Log.update({
+      where: { id: log.id },
+      data: {
+        isClassified: true,
+        isTask: isTask,
+        taskId: createdTaskId,
+        aiResponse: aiResponseText || log.aiResponse
+      }
+    });
   }
 }
 

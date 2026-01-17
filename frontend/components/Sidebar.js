@@ -12,10 +12,11 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
   const [saveName, setSaveName] = useState('');
 
   const menuItems = [
-    { id: 'logs', label: 'Conversation Logs', icon: '💬' },
+    { id: 'logs', label: 'Work Items', icon: '💬' },
     { id: 'tasks', label: 'All Tasks', icon: '📋' },
     { id: 'pending', label: 'My Pending Tasks', icon: '⏳' },
-    { id: 'members', label: 'Team Members', icon: '👥' }
+    { id: 'members', label: 'Team Members', icon: '👥' },
+    { id: 'deleted', label: 'Deleted Items', icon: '🗑️' }
   ];
 
   // Fetch saved views on component mount
@@ -40,8 +41,12 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
       const response = await fetch(`${API_URL}/views/${viewId}`);
       const data = await response.json();
 
-      if (response.ok && onCustomViewRequest) {
-        onCustomViewRequest(data.view.name, data.tasks);
+      if (response.ok) {
+        if (onCustomViewRequest) {
+          onCustomViewRequest(data.view?.name || 'Custom View', data.tasks);
+        }
+      } else {
+        alert(data.error || 'Failed to load view');
       }
     } catch (error) {
       console.error('Error loading saved view:', error);
@@ -86,8 +91,10 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
 
       const data = await response.json();
 
-      if (response.ok && onCustomViewRequest) {
-        onCustomViewRequest(data.viewName, data.tasks);
+      if (response.ok) {
+        if (onCustomViewRequest) {
+          onCustomViewRequest(data.viewName, data.tasks);
+        }
 
         // Ask if user wants to save this view
         setViewToSave({
@@ -168,16 +175,16 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
           <>
             <div className="sidebar-section-label">Saved Views</div>
             {savedViews.map((view) => (
-              <div key={view._id} className="saved-view-item">
+              <div key={view.id} className="saved-view-item">
                 <button
-                  onClick={() => handleSavedViewClick(view._id)}
+                  onClick={() => handleSavedViewClick(view.id)}
                   className="sidebar-item"
                 >
                   <span className="sidebar-item-icon">⭐</span>
                   <span className="sidebar-item-label">{view.name}</span>
                 </button>
                 <button
-                  onClick={(e) => handleDeleteView(view._id, e)}
+                  onClick={(e) => handleDeleteView(view.id, e)}
                   className="delete-view-button"
                   title="Delete view"
                 >
