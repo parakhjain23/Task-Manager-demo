@@ -62,17 +62,8 @@ export default function LogsList({ logs, loading, error, onLogClick }) {
         >
           <div className="task-header">
             <div style={{ width: '100%' }}>
-              <div className="log-user-input">
-                <span style={{ fontWeight: '600', color: '#666', fontSize: '0.85rem' }}>
-                  You:
-                </span>{' '}
-                {truncateText(log.userInput, 100)}
-              </div>
-              <div className="task-description" style={{ marginTop: '8px' }}>
-                <span style={{ fontWeight: '600', color: '#666', fontSize: '0.85rem' }}>
-                  AI:
-                </span>{' '}
-                {truncateText(log.aiResponse, 150)}
+              <div className="log-user-input" style={{ fontSize: '0.95rem', color: '#333' }}>
+                {truncateText(log.userInput, 200)}
               </div>
             </div>
           </div>

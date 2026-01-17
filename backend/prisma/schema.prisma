@@ -46,7 +46,6 @@ model Task {
 model Log {
   id                  String   @id @default(uuid())
   userInput           String
-  aiResponse          String
   isTask              Boolean  @default(false)
   taskId              String?
   task                Task?    @relation("TaskLogs", fields: [taskId], references: [id])

@@ -38,12 +38,11 @@ router.get('/:id', async (req, res) => {
 // Create a new log
 router.post('/', async (req, res) => {
   try {
-    const { userInput, aiResponse, metadata } = req.body;
+    const { userInput, metadata } = req.body;
 
     const log = await Log.create({
       data: {
         userInput,
-        aiResponse,
         conversationContext: metadata?.conversationContext || null,
         selectedTaskId: metadata?.selectedTaskId || null,
         isClassified: false,

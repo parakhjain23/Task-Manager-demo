@@ -19,7 +19,6 @@ export default function Home() {
 
   // Chatbot state
   const [chatInput, setChatInput] = useState('');
-  const [lastResponse, setLastResponse] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [conversationHistory, setConversationHistory] = useState([]);
 
@@ -139,31 +138,17 @@ export default function Home() {
 
       if (response.ok) {
         const data = await response.json();
-        const aiResponse = data.response || 'No response from AI';
-        setLastResponse(aiResponse);
-
-        // Add AI response to conversation history
-        setConversationHistory(prev => [
-          ...prev,
-          { role: 'ai', content: aiResponse }
-        ]);
 
         // Add the new log to the logs list if we're in logs view
         if (data.log && currentView === 'logs') {
           setLogs(prev => [data.log, ...prev]);
         }
-
-        // Refresh tasks if needed (background classifier will create tasks)
-        if (currentView === 'tasks' || currentView === 'pending') {
-          setTimeout(fetchTasks, 2000); // Delay to allow classifier to run
-        }
       } else {
         const errorData = await response.json();
-        setLastResponse(errorData.error || 'Failed to get response. Please try again.');
+        console.error('Error:', errorData.error || 'Failed to process request.');
       }
     } catch (error) {
       console.error('Error chatting:', error);
-      setLastResponse('Failed to connect to AI. Please try again.');
     } finally {
       setChatLoading(false);
     }
@@ -238,21 +223,13 @@ export default function Home() {
 
         {/* Bottom Center Chatbot */}
         <div className="bottom-chatbot-container">
-          {/* Last Response Display */}
-          {lastResponse && (
-            <div className="bottom-chatbot-response">
-              <div className="bottom-chatbot-response-label">AI Response:</div>
-              <div className="bottom-chatbot-response-text">{lastResponse}</div>
-            </div>
-          )}
-
           {/* Chat Input Form */}
           <form onSubmit={handleChatSubmit} className="bottom-chatbot-form">
             <input
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder={selectedTask ? `Ask about "${selectedTask.title}"...` : "Ask about tasks..."}
+              placeholder={selectedTask ? `Log message about "${selectedTask.title}"...` : "Log a message..."}
               className="bottom-chatbot-input"
               disabled={chatLoading}
             />
