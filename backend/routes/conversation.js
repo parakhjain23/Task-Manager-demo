@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const Task = require('../models/Task');
 const TeamMember = require('../models/TeamMember');
 const Log = require('../models/Log');
 const { detectTaskIntent } = require('../services/aiService');
@@ -18,7 +17,7 @@ router.post('/', async (req, res) => {
     }
 
     // Get all team members for context
-    const teamMembers = await TeamMember.find();
+    const teamMembers = await TeamMember.findMany();
 
     // Detect intent and get AI response
     const result = await detectTaskIntent(conversationHistory, teamMembers);
@@ -29,18 +28,16 @@ router.post('/', async (req, res) => {
       .pop()?.content || '';
 
     // Create a log with the AI response
-    const log = new Log({
-      userInput: lastUserMessage,
-      aiResponse: result.response,
-      isClassified: false,
-      isTask: false,
-      metadata: {
-        selectedTaskId: selectedTaskId || null,
-        conversationContext: conversationHistory.length > 1 ? 'multi-turn' : 'single-turn'
+    const log = await Log.create({
+      data: {
+        userInput: lastUserMessage,
+        aiResponse: result.response,
+        isClassified: false,
+        isTask: false,
+        conversationContext: conversationHistory.length > 1 ? 'multi-turn' : 'single-turn',
+        selectedTaskId: selectedTaskId || null
       }
     });
-
-    await log.save();
 
     // Return response to user (task will be created by background classifier)
     res.json({

@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Priority {
+  low
+  medium
+  high
+}
+
+enum TaskStatus {
+  pending
+  in_progress
+  completed
+}
+
+enum Availability {
+  available
+  busy
+  unavailable
+}
+
+model Task {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  priority    Priority   @default(medium)
+  assignedTo  String?
+  tags        String[]
+  status      TaskStatus @default(pending)
+  createdAt   DateTime   @default(now())
+  dueDate     DateTime?
+  
+  logs        Log[]      @relation("TaskLogs")
+  selectedIn  Log[]      @relation("SelectedTaskLogs")
+}
+
+model Log {
+  id                  String   @id @default(uuid())
+  userInput           String
+  aiResponse          String
+  isTask              Boolean  @default(false)
+  taskId              String?
+  task                Task?    @relation("TaskLogs", fields: [taskId], references: [id])
+  isClassified        Boolean  @default(false)
+  conversationContext String?
+  selectedTaskId      String?
+  selectedTask        Task?    @relation("SelectedTaskLogs", fields: [selectedTaskId], references: [id])
+  createdAt           DateTime @default(now())
+}
+
+model TeamMember {
+  id              String       @id @default(uuid())
+  name            String       @unique
+  skills          String[]
+  currentWorkload Int          @default(0)
+  availability    Availability @default(available)
+}
+
+model View {
+  id                String   @id @default(uuid())
+  name              String
+  query             String
+  filters           Json     // Storing as JSON to maintain flexibility similar to MongoDB
+  createdAt         DateTime @default(now())
+  lastUsed          DateTime @default(now())
+}

@@ -5,9 +5,14 @@ const Log = require('../models/Log');
 // Get all logs
 router.get('/', async (req, res) => {
   try {
-    const logs = await Log.find()
-      .populate('taskId', 'title status priority')
-      .sort({ createdAt: -1 });
+    const logs = await Log.findMany({
+      include: {
+        task: {
+          select: { title: true, status: true, priority: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
     res.json(logs);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching logs', error: error.message });
@@ -17,8 +22,10 @@ router.get('/', async (req, res) => {
 // Get a specific log by ID
 router.get('/:id', async (req, res) => {
   try {
-    const log = await Log.findById(req.params.id)
-      .populate('taskId');
+    const log = await Log.findUnique({
+      where: { id: req.params.id },
+      include: { task: true }
+    });
     if (!log) {
       return res.status(404).json({ message: 'Log not found' });
     }
@@ -33,15 +40,17 @@ router.post('/', async (req, res) => {
   try {
     const { userInput, aiResponse, metadata } = req.body;
 
-    const log = new Log({
-      userInput,
-      aiResponse,
-      metadata: metadata || {},
-      isClassified: false,
-      isTask: false,
+    const log = await Log.create({
+      data: {
+        userInput,
+        aiResponse,
+        conversationContext: metadata?.conversationContext || null,
+        selectedTaskId: metadata?.selectedTaskId || null,
+        isClassified: false,
+        isTask: false,
+      }
     });
 
-    await log.save();
     res.status(201).json(log);
   } catch (error) {
     res.status(500).json({ message: 'Error creating log', error: error.message });
@@ -53,11 +62,15 @@ router.put('/:id', async (req, res) => {
   try {
     const { isTask, taskId, isClassified } = req.body;
 
-    const log = await Log.findByIdAndUpdate(
-      req.params.id,
-      { isTask, taskId, isClassified },
-      { new: true }
-    ).populate('taskId', 'title status priority');
+    const log = await Log.update({
+      where: { id: req.params.id },
+      data: { isTask, taskId, isClassified },
+      include: {
+        task: {
+          select: { title: true, status: true, priority: true }
+        }
+      }
+    });
 
     if (!log) {
       return res.status(404).json({ message: 'Log not found' });
@@ -72,7 +85,9 @@ router.put('/:id', async (req, res) => {
 // Delete a log
 router.delete('/:id', async (req, res) => {
   try {
-    const log = await Log.findByIdAndDelete(req.params.id);
+    const log = await Log.delete({
+      where: { id: req.params.id }
+    });
     if (!log) {
       return res.status(404).json({ message: 'Log not found' });
     }
@@ -85,8 +100,10 @@ router.delete('/:id', async (req, res) => {
 // Get unclassified logs (for background processing)
 router.get('/unclassified/pending', async (req, res) => {
   try {
-    const logs = await Log.find({ isClassified: false })
-      .sort({ createdAt: 1 });
+    const logs = await Log.findMany({
+      where: { isClassified: false },
+      orderBy: { createdAt: 'asc' }
+    });
     res.json(logs);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching unclassified logs', error: error.message });

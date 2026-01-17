@@ -14,8 +14,9 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Name and skills are required' });
     }
 
-    const teamMember = new TeamMember({ name, skills, availability });
-    await teamMember.save();
+    const teamMember = await TeamMember.create({
+      data: { name, skills, availability: availability || 'available' }
+    });
 
     res.json({ success: true, teamMember });
   } catch (error) {
@@ -30,7 +31,7 @@ router.post('/', async (req, res) => {
  */
 router.get('/', async (req, res) => {
   try {
-    const teamMembers = await TeamMember.find();
+    const teamMembers = await TeamMember.findMany();
     res.json(teamMembers);
   } catch (error) {
     console.error('Error fetching team members:', error);
@@ -47,7 +48,10 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    const teamMember = await TeamMember.findByIdAndUpdate(id, updates, { new: true });
+    const teamMember = await TeamMember.update({
+      where: { id },
+      data: updates
+    });
 
     if (!teamMember) {
       return res.status(404).json({ error: 'Team member not found' });
@@ -67,7 +71,9 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const teamMember = await TeamMember.findByIdAndDelete(id);
+    const teamMember = await TeamMember.delete({
+      where: { id }
+    });
 
     if (!teamMember) {
       return res.status(404).json({ error: 'Team member not found' });

@@ -9,7 +9,9 @@ const Task = require('../models/Task');
  */
 router.get('/', async (req, res) => {
   try {
-    const views = await View.find().sort({ lastUsed: -1 });
+    const views = await View.findMany({
+      orderBy: { lastUsed: 'desc' }
+    });
     res.json(views);
   } catch (error) {
     console.error('Error fetching views:', error);
@@ -30,18 +32,19 @@ router.post('/', async (req, res) => {
     }
 
     // Check if view with same name already exists
-    const existingView = await View.findOne({ name });
+    const existingView = await View.findFirst({ where: { name } });
     if (existingView) {
       return res.status(400).json({ error: 'A view with this name already exists' });
     }
 
-    const view = new View({
-      name,
-      query,
-      filters
+    const view = await View.create({
+      data: {
+        name,
+        query,
+        filters: filters || {}
+      }
     });
 
-    await view.save();
     res.status(201).json(view);
   } catch (error) {
     console.error('Error saving view:', error);
@@ -55,21 +58,26 @@ router.post('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const view = await View.findById(req.params.id);
+    const view = await View.findUnique({ where: { id: req.params.id } });
 
     if (!view) {
       return res.status(404).json({ error: 'View not found' });
     }
 
     // Update lastUsed timestamp
-    view.lastUsed = new Date();
-    await view.save();
+    await View.update({
+      where: { id: view.id },
+      data: { lastUsed: new Date() }
+    });
 
-    // Build MongoDB filter from saved filters
-    const mongoFilter = buildMongoFilter(view.filters);
+    // Build Prisma filter from saved filters
+    const prismaFilter = buildPrismaFilter(view.filters);
 
     // Query tasks
-    const tasks = await Task.find(mongoFilter).sort({ createdAt: -1 });
+    const tasks = await Task.findMany({
+      where: prismaFilter,
+      orderBy: { createdAt: 'desc' }
+    });
 
     res.json({
       view: view,
@@ -88,7 +96,9 @@ router.get('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const view = await View.findByIdAndDelete(req.params.id);
+    const view = await View.delete({
+      where: { id: req.params.id }
+    });
 
     if (!view) {
       return res.status(404).json({ error: 'View not found' });
@@ -109,11 +119,10 @@ router.put('/:id', async (req, res) => {
   try {
     const { name, query, filters } = req.body;
 
-    const view = await View.findByIdAndUpdate(
-      req.params.id,
-      { name, query, filters, lastUsed: new Date() },
-      { new: true }
-    );
+    const view = await View.update({
+      where: { id: req.params.id },
+      data: { name, query, filters, lastUsed: new Date() }
+    });
 
     if (!view) {
       return res.status(404).json({ error: 'View not found' });
@@ -127,25 +136,25 @@ router.put('/:id', async (req, res) => {
 });
 
 /**
- * Helper function to build MongoDB filter from saved filters
+ * Helper function to build Prisma filter from saved filters
  */
-function buildMongoFilter(filters) {
-  const mongoFilter = {};
+function buildPrismaFilter(filters) {
+  const prismaFilter = {};
 
   if (filters.status) {
-    mongoFilter.status = filters.status;
+    prismaFilter.status = filters.status === 'in-progress' ? 'in_progress' : filters.status;
   }
 
   if (filters.priority) {
-    mongoFilter.priority = filters.priority;
+    prismaFilter.priority = filters.priority;
   }
 
   if (filters.assignedTo) {
-    mongoFilter.assignedTo = filters.assignedTo;
+    prismaFilter.assignedTo = filters.assignedTo;
   }
 
   if (filters.tags && filters.tags.length > 0) {
-    mongoFilter.tags = { $in: filters.tags };
+    prismaFilter.tags = { hasSome: filters.tags };
   }
 
   const now = new Date();
@@ -153,20 +162,20 @@ function buildMongoFilter(filters) {
   if (filters.createdToday) {
     const startOfToday = new Date(now.setHours(0, 0, 0, 0));
     const endOfToday = new Date(now.setHours(23, 59, 59, 999));
-    mongoFilter.createdAt = { $gte: startOfToday, $lte: endOfToday };
+    prismaFilter.createdAt = { gte: startOfToday, lte: endOfToday };
   }
 
   if (filters.createdThisWeek) {
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
-    mongoFilter.createdAt = { $gte: startOfWeek };
+    prismaFilter.createdAt = { gte: startOfWeek };
   }
 
   if (filters.createdWithinDays) {
     const daysAgo = new Date();
     daysAgo.setDate(daysAgo.getDate() - filters.createdWithinDays);
-    mongoFilter.createdAt = { $gte: daysAgo };
+    prismaFilter.createdAt = { gte: daysAgo };
   }
 
   if (filters.dueThisWeek) {
@@ -178,16 +187,16 @@ function buildMongoFilter(filters) {
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);
 
-    mongoFilter.dueDate = { $gte: startOfWeek, $lte: endOfWeek };
+    prismaFilter.dueDate = { gte: startOfWeek, lte: endOfWeek };
   }
 
   if (filters.dueWithinDays) {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + filters.dueWithinDays);
-    mongoFilter.dueDate = { $lte: futureDate };
+    prismaFilter.dueDate = { lte: futureDate };
   }
 
-  return mongoFilter;
+  return prismaFilter;
 }
 
 module.exports = router;

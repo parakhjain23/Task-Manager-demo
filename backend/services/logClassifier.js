@@ -48,7 +48,10 @@ class LogClassifier {
       this.isProcessing = true;
 
       // Get all unclassified logs
-      const unclassifiedLogs = await Log.find({ isClassified: false }).sort({ createdAt: 1 });
+      const unclassifiedLogs = await Log.findMany({
+        where: { isClassified: false },
+        orderBy: { createdAt: 'asc' }
+      });
 
       if (unclassifiedLogs.length === 0) {
         return; // Nothing to process
@@ -57,17 +60,19 @@ class LogClassifier {
       console.log(`[LogClassifier] Processing ${unclassifiedLogs.length} unclassified log(s)...`);
 
       // Get team members for task assignment
-      const teamMembers = await TeamMember.find();
+      const teamMembers = await TeamMember.findMany();
 
       // Process each log
       for (const log of unclassifiedLogs) {
         try {
           await this.classifyAndCreateTask(log, teamMembers);
         } catch (error) {
-          console.error(`[LogClassifier] Error processing log ${log._id}:`, error.message);
+          console.error(`[LogClassifier] Error processing log ${log.id}:`, error.message);
           // Mark as classified anyway to avoid retrying failed logs infinitely
-          log.isClassified = true;
-          await log.save();
+          await Log.update({
+            where: { id: log.id },
+            data: { isClassified: true }
+          });
         }
       }
 
@@ -89,7 +94,7 @@ class LogClassifier {
       teamMembers
     );
 
-    console.log(`[LogClassifier] Log ${log._id} classification:`, {
+    console.log(`[LogClassifier] Log ${log.id} classification:`, {
       isTask: classification.isTask,
       confidence: classification.confidence,
       reasoning: classification.reasoning
@@ -104,31 +109,41 @@ class LogClassifier {
         priority: classification.taskData.priority || 'medium',
         tags: classification.taskData.tags || [],
         assignedTo: classification.taskData.assignedTo || null,
-        dueDate: classification.taskData.dueDate || null
+        dueDate: classification.taskData.dueDate ? new Date(classification.taskData.dueDate) : null,
+        status: 'pending'
       };
 
       // Create the task
-      const task = new Task(taskData);
-      await task.save();
+      const task = await Task.create({
+        data: taskData
+      });
 
-      console.log(`[LogClassifier] Created task ${task._id} from log ${log._id}: "${task.title}"`);
+      console.log(`[LogClassifier] Created task ${task.id} from log ${log.id}: "${task.title}"`);
 
       // Update assigned team member's workload
       if (taskData.assignedTo) {
-        await TeamMember.findOneAndUpdate(
-          { name: taskData.assignedTo },
-          { $inc: { currentWorkload: 1 } }
-        );
+        await TeamMember.update({
+          where: { name: taskData.assignedTo },
+          data: { currentWorkload: { increment: 1 } }
+        });
       }
 
       // Update log with task reference
-      log.isTask = true;
-      log.taskId = task._id;
+      await Log.update({
+        where: { id: log.id },
+        data: {
+          isTask: true,
+          taskId: task.id,
+          isClassified: true
+        }
+      });
+    } else {
+      // Mark log as classified
+      await Log.update({
+        where: { id: log.id },
+        data: { isClassified: true }
+      });
     }
-
-    // Mark log as classified
-    log.isClassified = true;
-    await log.save();
   }
 }
 

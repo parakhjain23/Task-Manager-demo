@@ -4,29 +4,29 @@ const Task = require('../models/Task');
 const { analyzeViewRequest } = require('../services/aiService');
 
 /**
- * Build MongoDB filter from AI-analyzed criteria
+ * Build Prisma filter from AI-analyzed criteria
  */
-function buildMongoFilter(filters) {
-  const mongoFilter = {};
+function buildPrismaFilter(filters) {
+  const prismaFilter = {};
 
-  // Status filter
+  // Status filter (Map in-progress to in_progress)
   if (filters.status) {
-    mongoFilter.status = filters.status;
+    prismaFilter.status = filters.status === 'in-progress' ? 'in_progress' : filters.status;
   }
 
   // Priority filter
   if (filters.priority) {
-    mongoFilter.priority = filters.priority;
+    prismaFilter.priority = filters.priority;
   }
 
   // Assigned to filter
   if (filters.assignedTo) {
-    mongoFilter.assignedTo = filters.assignedTo;
+    prismaFilter.assignedTo = filters.assignedTo;
   }
 
   // Tags filter
   if (filters.tags && filters.tags.length > 0) {
-    mongoFilter.tags = { $in: filters.tags };
+    prismaFilter.tags = { hasSome: filters.tags };
   }
 
   // Date-based filters
@@ -36,7 +36,7 @@ function buildMongoFilter(filters) {
   if (filters.createdToday) {
     const startOfToday = new Date(now.setHours(0, 0, 0, 0));
     const endOfToday = new Date(now.setHours(23, 59, 59, 999));
-    mongoFilter.createdAt = { $gte: startOfToday, $lte: endOfToday };
+    prismaFilter.createdAt = { gte: startOfToday, lte: endOfToday };
   }
 
   // Created this week
@@ -44,14 +44,14 @@ function buildMongoFilter(filters) {
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
-    mongoFilter.createdAt = { $gte: startOfWeek };
+    prismaFilter.createdAt = { gte: startOfWeek };
   }
 
   // Created within X days
   if (filters.createdWithinDays) {
     const daysAgo = new Date();
     daysAgo.setDate(daysAgo.getDate() - filters.createdWithinDays);
-    mongoFilter.createdAt = { $gte: daysAgo };
+    prismaFilter.createdAt = { gte: daysAgo };
   }
 
   // Due this week
@@ -64,17 +64,17 @@ function buildMongoFilter(filters) {
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);
 
-    mongoFilter.dueDate = { $gte: startOfWeek, $lte: endOfWeek };
+    prismaFilter.dueDate = { gte: startOfWeek, lte: endOfWeek };
   }
 
   // Due within X days
   if (filters.dueWithinDays) {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + filters.dueWithinDays);
-    mongoFilter.dueDate = { $lte: futureDate };
+    prismaFilter.dueDate = { lte: futureDate };
   }
 
-  return mongoFilter;
+  return prismaFilter;
 }
 
 /**
@@ -100,11 +100,14 @@ router.post('/', async (req, res) => {
       analysisResult.filters.assignedTo = null;
     }
 
-    // Build MongoDB filter
-    const mongoFilter = buildMongoFilter(analysisResult.filters);
+    // Build Prisma filter
+    const prismaFilter = buildPrismaFilter(analysisResult.filters);
 
     // Query tasks
-    const tasks = await Task.find(mongoFilter).sort({ createdAt: -1 });
+    const tasks = await Task.findMany({
+      where: prismaFilter,
+      orderBy: { createdAt: 'desc' }
+    });
 
     res.json({
       viewName: analysisResult.viewName,

@@ -1,6 +1,5 @@
 require('dotenv').config();
-const mongoose = require('mongoose');
-const TeamMember = require('./models/TeamMember');
+const { prisma } = require('./config/database');
 
 const teamMembers = [
   {
@@ -31,27 +30,32 @@ const teamMembers = [
 
 async function seedTeam() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('Connected to MongoDB');
+    console.log('Connecting to database...');
 
     // Clear existing team members
-    await TeamMember.deleteMany({});
+    await prisma.teamMember.deleteMany({});
     console.log('Cleared existing team members');
 
     // Insert new team members
-    await TeamMember.insertMany(teamMembers);
+    for (const member of teamMembers) {
+      await prisma.teamMember.create({
+        data: member
+      });
+    }
     console.log(`✓ Successfully added ${teamMembers.length} team members`);
 
     // Display added members
-    const members = await TeamMember.find();
+    const members = await prisma.teamMember.findMany();
     console.log('\nTeam Members:');
     members.forEach(member => {
       console.log(`- ${member.name}: ${member.skills.join(', ')}`);
     });
 
+    await prisma.$disconnect();
     process.exit(0);
   } catch (error) {
     console.error('Error seeding team:', error);
+    await prisma.$disconnect();
     process.exit(1);
   }
 }

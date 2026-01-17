@@ -16,7 +16,7 @@ A fully AI-driven task management application where users give instructions in n
 
 ### Backend
 - Node.js + Express
-- MongoDB (Mongoose)
+- PostgreSQL (Prisma ORM)
 - OpenAI API (GPT-4)
 
 ### Frontend
@@ -59,7 +59,7 @@ Task manager/
 
 ### Prerequisites
 - Node.js (v18 or higher)
-- MongoDB (local or Atlas)
+- PostgreSQL
 - OpenAI API key
 
 ### Backend Setup
@@ -81,12 +81,17 @@ cp .env.example .env
 
 4. Edit `.env` and add your credentials:
 ```env
-MONGODB_URI=mongodb://localhost:27017/task-manager
+DATABASE_URL="postgresql://user:password@localhost:5432/task_manager?schema=public"
 OPENAI_API_KEY=your_openai_api_key_here
 PORT=5000
 ```
 
-5. Start the backend server:
+5. Run Prisma migrations:
+```bash
+npx prisma migrate dev --name init
+```
+
+6. Start the backend server:
 ```bash
 npm run dev
 ```
@@ -220,7 +225,7 @@ The AI will automatically:
 ## Environment Variables
 
 ### Backend (.env)
-- `MONGODB_URI` - MongoDB connection string
+- `DATABASE_URL` - PostgreSQL connection string (Prisma)
 - `OPENAI_API_KEY` - OpenAI API key
 - `PORT` - Server port (default: 5000)
 

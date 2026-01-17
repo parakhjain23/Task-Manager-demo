@@ -85,15 +85,15 @@ curl -X POST http://localhost:5001/api/team \
    ```
 3. Should return: `{"status":"ok","message":"Task Manager API is running"}`
 
-#### 6. MongoDB Connection Issues
+#### 6. Database Connection Issues
 
 **Symptoms:** Database connection errors in backend logs
 
 **Solution:**
-1. Verify your MongoDB Atlas connection string in [backend/.env](backend/.env)
-2. Make sure your IP is whitelisted in MongoDB Atlas
-3. Check if the database name is correct
-4. Test connection: The backend logs should show "MongoDB connected successfully"
+1. Verify your DATABASE_URL in [backend/.env](backend/.env)
+2. Make sure your PostgreSQL server is running
+3. Check if the database name and credentials are correct
+4. Test connection: The backend logs should show "PostgreSQL (Prisma) connected successfully"
 
 ## Testing the API Key
 
@@ -111,7 +111,7 @@ This will show detailed error information.
 Always check the terminal where your backend is running. It will show detailed error messages that help identify the issue.
 
 Look for:
-- `MongoDB connected successfully` - Database is working
+- `PostgreSQL (Prisma) connected successfully` - Database is working
 - Any OpenAI API errors with specific codes
 - Stack traces that point to the issue
 
@@ -129,11 +129,11 @@ Look for:
    ```
 
 2. **Check your .env files:**
-   - [backend/.env](backend/.env) should have valid MongoDB URI and OpenAI key
+   - [backend/.env](backend/.env) should have valid DATABASE_URL and OpenAI key
    - [frontend/.env.local](frontend/.env.local) should point to `http://localhost:5001/api`
 
 3. **Verify all services:**
-   - MongoDB is running/accessible
+   - PostgreSQL is running/accessible
    - OpenAI API key is valid and has credits
    - Team members are added
    - Ports 3000 and 5001 are not blocked

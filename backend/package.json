@@ -8,15 +8,21 @@
     "dev": "nodemon server.js",
     "seed": "node seed-team.js"
   },
-  "keywords": ["task-manager", "ai", "openai"],
+  "keywords": [
+    "task-manager",
+    "ai",
+    "openai"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^8.0.0",
-    "dotenv": "^16.3.1",
+    "@prisma/client": "^6.19.2",
     "cors": "^2.8.5",
-    "openai": "^4.20.1"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "openai": "^4.20.1",
+    "pg": "^8.17.1",
+    "prisma": "^6.19.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
