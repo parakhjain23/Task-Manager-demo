@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 
-export default function ChatbotPanel({ isOpen, itemId, itemTitle, isChatbotReady }) {
+export default function ChatbotPanel({ isOpen, itemId, itemDetails, isChatbotReady }) {
     useEffect(() => {
         if (isOpen && isChatbotReady && window.Chatbot) {
             // Send dynamic data at runtime when opening the sidebar
@@ -15,11 +15,11 @@ export default function ChatbotPanel({ isOpen, itemId, itemTitle, isChatbotReady
                 hideCloseButton: true,
                 hideIcon: true,
                 variables: {
-                    itemTitle: itemTitle || ''
+                    details: itemDetails || ''
                 }
             });
         }
-    }, [isOpen, itemId, itemTitle, isChatbotReady]);
+    }, [isOpen, itemId, itemDetails, isChatbotReady]);
 
     if (!isOpen) return null;
 

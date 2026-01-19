@@ -397,6 +397,7 @@ export default function Home() {
             isOpen={!!selectedTask}
             onClose={() => setSelectedTask(null)}
             itemId={selectedTask.id}
+            itemDetails={selectedTask}
             itemTitle={selectedTask.title}
             isChatbotReady={chatbotReady}
           />
@@ -415,6 +416,7 @@ export default function Home() {
             isOpen={!!selectedLog}
             onClose={() => setSelectedLog(null)}
             itemId={selectedLog.id}
+            itemDetails={selectedLog}
             itemTitle={selectedLog.userInput?.substring(0, 30) + '...'}
             isChatbotReady={chatbotReady}
           />
