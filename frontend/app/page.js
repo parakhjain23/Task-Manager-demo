@@ -106,6 +106,7 @@ export default function Home() {
             script.src = 'https://chatbot-embed.viasocket.com/chatbot-prod.js';
             script.setAttribute('embedToken', data.token);
             script.setAttribute('bridgeName', 'task-manager');
+            script.setAttribute('hideIcon', 'true');
             script.onload = () => setChatbotReady(true);
             document.body.appendChild(script);
           }
@@ -217,11 +218,20 @@ export default function Home() {
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (selectedLog || selectedTask) {
+          setSelectedLog(null);
+          setSelectedTask(null);
+          return;
+        }
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+          document.activeElement.blur();
+          return;
+        }
+      }
+
       // Don't navigate if user is typing in an input or textarea
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-        if (e.key === 'Escape') {
-          document.activeElement.blur();
-        }
         return;
       }
 
@@ -242,15 +252,12 @@ export default function Home() {
             handleTaskClick(selectedItem);
           }
         }
-      } else if (e.key === 'Escape') {
-        if (selectedLog) setSelectedLog(null);
-        if (selectedTask) setSelectedTask(null);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentView, filteredLogs, filteredTasks, pendingTasks, activeIndex]);
+  }, [currentView, filteredLogs, filteredTasks, pendingTasks, activeIndex, selectedLog, selectedTask]);
 
   // Reset active index when view or search changes
   useEffect(() => {
