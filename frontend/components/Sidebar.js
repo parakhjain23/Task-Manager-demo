@@ -1,6 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import {
+  MessageSquare,
+  ClipboardList,
+  Clock,
+  Users,
+  Trash2,
+  Star,
+  Search,
+  Zap,
+  Plus,
+  X,
+  Sparkles
+} from 'lucide-react';
 
 export default function Sidebar({ onViewChange, currentView, onCustomViewRequest }) {
   const [showCustomView, setShowCustomView] = useState(false);
@@ -12,11 +25,11 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
   const [saveName, setSaveName] = useState('');
 
   const menuItems = [
-    { id: 'logs', label: 'Work Logs', icon: '💬' },
-    { id: 'tasks', label: 'All Tasks', icon: '📋' },
-    { id: 'pending', label: 'My Pending Tasks', icon: '⏳' },
-    { id: 'members', label: 'Team Members', icon: '👥' },
-    { id: 'deleted', label: 'Deleted Items', icon: '🗑️' }
+    { id: 'logs', label: 'Work Logs', icon: <MessageSquare size={18} /> },
+    { id: 'tasks', label: 'All Tasks', icon: <ClipboardList size={18} /> },
+    { id: 'pending', label: 'My Pending Tasks', icon: <Clock size={18} /> },
+    { id: 'members', label: 'Team Members', icon: <Users size={18} /> },
+    { id: 'deleted', label: 'Deleted Items', icon: <Trash2 size={18} /> }
   ];
 
   // Fetch saved views on component mount
@@ -151,7 +164,7 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="sidebar-logo">
-          <span className="logo-icon">✦</span>
+          <Sparkles size={24} className="logo-icon-lucide" />
           <span className="logo-text">IntelliFlow</span>
         </div>
       </div>
@@ -180,7 +193,7 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
                   onClick={() => handleSavedViewClick(view.id)}
                   className="sidebar-item"
                 >
-                  <span className="sidebar-item-icon">⭐</span>
+                  <span className="sidebar-item-icon"><Star size={18} /></span>
                   <span className="sidebar-item-label">{view.name}</span>
                 </button>
                 <button
@@ -188,7 +201,7 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
                   className="delete-view-button"
                   title="Delete view"
                 >
-                  ✕
+                  <X size={14} />
                 </button>
               </div>
             ))}
@@ -200,7 +213,9 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
           onClick={() => setShowCustomView(!showCustomView)}
           className={`sidebar-item ${showCustomView ? 'active' : ''}`}
         >
-          <span className="sidebar-item-icon">🔍</span>
+          <span className="sidebar-item-icon">
+            {showCustomView ? <X size={18} /> : <Search size={18} />}
+          </span>
           <span className="sidebar-item-label">Create Custom View</span>
         </button>
 
@@ -254,7 +269,10 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
 
       <div className="sidebar-footer">
         <div className="sidebar-footer-info">
-          <div className="sidebar-footer-label">AI Assistant</div>
+          <div className="sidebar-footer-label">
+            <Zap size={14} style={{ marginRight: '6px', color: 'var(--primary)' }} />
+            AI Assistant
+          </div>
           <div className="sidebar-footer-status">
             <span className="status-indicator"></span>
             <span>Active</span>

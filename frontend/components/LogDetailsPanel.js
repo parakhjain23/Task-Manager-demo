@@ -1,5 +1,6 @@
 'use client';
 
+import { X, Clock, Calendar, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import Timeline from './Timeline';
 
 export default function LogDetailsPanel({ log, onClose }) {
@@ -21,7 +22,11 @@ export default function LogDetailsPanel({ log, onClose }) {
         <div className="task-details-panel">
             <div className="task-details-header">
                 <h2 className="task-details-title">Work Item Details</h2>
-                <button onClick={onClose} className="task-details-close">✕</button>
+                <div className="task-details-header-actions">
+                    <button onClick={onClose} className="task-details-close">
+                        <X size={20} />
+                    </button>
+                </div>
             </div>
 
             <div className="task-details-content task-details-scrollable">
@@ -71,7 +76,7 @@ export default function LogDetailsPanel({ log, onClose }) {
                 <div className="task-detail-section">
                     <label className="task-detail-label">Captured At</label>
                     <div className="task-detail-value task-date">
-                        📅 {formatDate(log.createdAt)}
+                        <Calendar size={14} /> {formatDate(log.createdAt)}
                     </div>
                 </div>
 
@@ -98,7 +103,7 @@ export default function LogDetailsPanel({ log, onClose }) {
                             alignItems: 'center',
                             gap: '10px'
                         }}>
-                            <span style={{ fontSize: '20px' }}>✅</span>
+                            <CheckCircle2 size={24} style={{ color: '#2e7d32' }} />
                             <div>
                                 <div style={{ fontWeight: '600', color: '#2e7d32', fontSize: '14px' }}>Task Created Successfully</div>
                                 <div style={{ color: '#4caf50', fontSize: '12px' }}>This item has been converted into a task.</div>

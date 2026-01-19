@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Pencil, Trash2, X, User, Tag, Calendar, RotateCcw, CheckCircle2, History } from 'lucide-react';
 import Timeline from './Timeline';
 
 export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
@@ -10,11 +11,6 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
   const [loading, setLoading] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
-  // Task-specific chatbot state
-  const [chatInput, setChatInput] = useState('');
-  const [lastResponse, setLastResponse] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-  const [taskConversationHistory, setTaskConversationHistory] = useState([]);
 
   useEffect(() => {
     const fetchFullDetails = async () => {
@@ -136,279 +132,201 @@ export default function TaskDetailsPanel({ task, onClose, onUpdate }) {
     }
   };
 
-  const handleTaskChatSubmit = async (e) => {
-    e.preventDefault();
-    if (!chatInput.trim() || chatLoading) return;
-
-    const userMessage = chatInput.trim();
-    setChatInput('');
-
-    // Always include task context for this chatbot
-    const contextMessage = `[Task Context: "${task.title}" - ${task.description} - Status: ${task.status}, Priority: ${task.priority}]\nUser Question: ${userMessage}`;
-
-    const updatedHistory = [
-      ...taskConversationHistory,
-      { role: 'user', content: contextMessage }
-    ];
-    setTaskConversationHistory(updatedHistory);
-
-    setChatLoading(true);
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const response = await fetch(`${API_URL}/conversation`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationHistory: updatedHistory
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const aiResponse = data.response || 'No response from AI';
-        setLastResponse(aiResponse);
-
-        // Add AI response to conversation history
-        setTaskConversationHistory(prev => [
-          ...prev,
-          { role: 'ai', content: aiResponse }
-        ]);
-      } else {
-        const errorData = await response.json();
-        setLastResponse(errorData.error || 'Failed to get response. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error chatting:', error);
-      setLastResponse('Failed to connect to AI. Please try again.');
-    } finally {
-      setChatLoading(false);
-    }
-  };
 
   return (
     <div className="task-details-panel">
       <div className="task-details-header">
         <h2 className="task-details-title">Task Details</h2>
-        <button onClick={onClose} className="task-details-close">✕</button>
+        <div className="task-details-header-actions">
+          {!isEditing && !task.isDeleted && (
+            <>
+              <button
+                onClick={() => setIsEditing(true)}
+                className="task-header-icon-button"
+                title="Edit Task"
+              >
+                <Pencil size={18} />
+              </button>
+              <button
+                onClick={handleDelete}
+                className="task-header-icon-button danger"
+                title="Delete Task"
+              >
+                <Trash2 size={18} />
+              </button>
+            </>
+          )}
+          {task.isDeleted && (
+            <button
+              onClick={handleRecover}
+              className="task-header-icon-button primary"
+              title="Recover Task"
+            >
+              <RotateCcw size={18} />
+            </button>
+          )}
+          <button onClick={onClose} className="task-details-close">
+            <X size={20} />
+          </button>
+        </div>
       </div>
 
-      {/* Split into two sections: Task Details (top) and Chatbot (bottom) */}
-      <div className="task-details-split-container">
-        {/* Top Section: Task Details */}
-        <div className="task-details-content task-details-scrollable">
-          {/* Title */}
-          <div className="task-detail-section">
-            <label className="task-detail-label">Title</label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editedTask.title}
-                onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
-                className="task-detail-input"
-              />
-            ) : (
-              <div className="task-detail-value task-title-large">{task.title}</div>
-            )}
-          </div>
-
-          {/* Description */}
-          <div className="task-detail-section">
-            <label className="task-detail-label">Description</label>
-            {isEditing ? (
-              <textarea
-                value={editedTask.description}
-                onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
-                className="task-detail-textarea"
-                rows={4}
-              />
-            ) : (
-              <div className="task-detail-value">{task.description}</div>
-            )}
-          </div>
-
-          {/* Status and Priority Row */}
-          <div className="task-detail-row">
-            <div className="task-detail-section">
-              <label className="task-detail-label">Status</label>
-              {isEditing ? (
-                <select
-                  value={editedTask.status}
-                  onChange={(e) => setEditedTask({ ...editedTask, status: e.target.value })}
-                  className="task-detail-select"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                </select>
-              ) : (
-                <div className="task-detail-badge" style={{ backgroundColor: getStatusColor(task.status) }}>
-                  {task.status}
-                </div>
-              )}
-            </div>
-
-            <div className="task-detail-section">
-              <label className="task-detail-label">Priority</label>
-              {isEditing ? (
-                <select
-                  value={editedTask.priority}
-                  onChange={(e) => setEditedTask({ ...editedTask, priority: e.target.value })}
-                  className="task-detail-select"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              ) : (
-                <div className="task-detail-badge" style={{ backgroundColor: getPriorityColor(task.priority) }}>
-                  {task.priority}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Assigned To */}
-          <div className="task-detail-section">
-            <label className="task-detail-label">Assigned To</label>
-            <div className="task-detail-value">
-              {task.assignedTo ? (
-                <span className="task-assignee">👤 {task.assignedTo}</span>
-              ) : (
-                <span className="task-unassigned">Unassigned</span>
-              )}
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div className="task-detail-section">
-            <label className="task-detail-label">Tags</label>
-            <div className="task-tags-container">
-              {task.tags && task.tags.length > 0 ? (
-                task.tags.map((tag, index) => (
-                  <span key={index} className="task-tag">{tag}</span>
-                ))
-              ) : (
-                <span className="task-no-tags">No tags</span>
-              )}
-            </div>
-          </div>
-
-          {/* Dates Row */}
-          <div className="task-detail-row">
-            <div className="task-detail-section">
-              <label className="task-detail-label">Created</label>
-              <div className="task-detail-value task-date">
-                📅 {formatDate(task.createdAt)}
-              </div>
-            </div>
-
-            <div className="task-detail-section">
-              <label className="task-detail-label">Due Date</label>
-              <div className="task-detail-value task-date">
-                {task.dueDate ? `📅 ${formatDate(task.dueDate)}` : 'Not set'}
-              </div>
-            </div>
-          </div>
-
-          {/* Source Activity Timeline */}
-          {fullTaskData?.logs && fullTaskData.logs.length > 0 && (
-            <div className="task-detail-section" style={{ marginTop: '24px' }}>
-              <label className="task-detail-label">Task Origin Timeline</label>
-              <Timeline
-                createdAt={fullTaskData.logs[0].createdAt}
-                analyzedAt={fullTaskData.logs[0].analyzedAt}
-                isClassified={fullTaskData.logs[0].isClassified}
-                isTask={fullTaskData.logs[0].isTask}
-                taskTitle={task.title}
-              />
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="task-details-actions">
-            {isEditing ? (
-              <>
-                <button
-                  onClick={() => {
-                    setEditedTask(task);
-                    setIsEditing(false);
-                  }}
-                  className="task-action-button secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={loading}
-                  className="task-action-button primary"
-                >
-                  {loading ? 'Saving...' : 'Save Changes'}
-                </button>
-              </>
-            ) : (
-              <>
-                {task.isDeleted ? (
-                  <button
-                    onClick={handleRecover}
-                    className="task-action-button primary"
-                  >
-                    Recover Task
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleDelete}
-                      className="task-action-button danger"
-                    >
-                      Delete Task
-                    </button>
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="task-action-button primary"
-                    >
-                      Edit Task
-                    </button>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-        {/* End of Top Section: Task Details */}
-
-        {/* Bottom Section: Task-Specific Chatbot */}
-        <div className="task-chatbot-section">
-          <div className="task-chatbot-header">
-            <span className="task-chatbot-title">💬 Ask about this task</span>
-          </div>
-
-          {/* Last Response Display */}
-          {lastResponse && (
-            <div className="task-chatbot-response">
-              <div className="task-chatbot-response-label">AI Response:</div>
-              <div className="task-chatbot-response-text">{lastResponse}</div>
-            </div>
-          )}
-
-          {/* Chat Input Form */}
-          <form onSubmit={handleTaskChatSubmit} className="task-chatbot-form">
+      {/* Task Details Content */}
+      <div className="task-details-content">
+        {/* Title */}
+        <div className="task-detail-section">
+          <label className="task-detail-label">Title</label>
+          {isEditing ? (
             <input
               type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Ask about this task..."
-              className="task-chatbot-input"
-              disabled={chatLoading}
+              value={editedTask.title}
+              onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
+              className="task-detail-input"
             />
-            <button
-              type="submit"
-              disabled={chatLoading || !chatInput.trim()}
-              className="task-chatbot-send-button"
-            >
-              {chatLoading ? '⋯' : '→'}
-            </button>
-          </form>
+          ) : (
+            <div className="task-detail-value task-title-large">{task.title}</div>
+          )}
         </div>
+
+        {/* Description */}
+        <div className="task-detail-section">
+          <label className="task-detail-label">Description</label>
+          {isEditing ? (
+            <textarea
+              value={editedTask.description}
+              onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
+              className="task-detail-textarea"
+              rows={4}
+            />
+          ) : (
+            <div className="task-detail-value">{task.description}</div>
+          )}
+        </div>
+
+        {/* Status and Priority Row */}
+        <div className="task-detail-row">
+          <div className="task-detail-section">
+            <label className="task-detail-label">Status</label>
+            {isEditing ? (
+              <select
+                value={editedTask.status}
+                onChange={(e) => setEditedTask({ ...editedTask, status: e.target.value })}
+                className="task-detail-select"
+              >
+                <option value="pending">Pending</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            ) : (
+              <div className="task-detail-badge" style={{ backgroundColor: getStatusColor(task.status) }}>
+                {task.status}
+              </div>
+            )}
+          </div>
+
+          <div className="task-detail-section">
+            <label className="task-detail-label">Priority</label>
+            {isEditing ? (
+              <select
+                value={editedTask.priority}
+                onChange={(e) => setEditedTask({ ...editedTask, priority: e.target.value })}
+                className="task-detail-select"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            ) : (
+              <div className="task-detail-badge" style={{ backgroundColor: getPriorityColor(task.priority) }}>
+                {task.priority}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Assigned To */}
+        <div className="task-detail-section">
+          <label className="task-detail-label">Assigned To</label>
+          <div className="task-detail-value">
+            {task.assignedTo ? (
+              <span className="task-assignee">
+                <User size={14} /> {task.assignedTo}
+              </span>
+            ) : (
+              <span className="task-unassigned">Unassigned</span>
+            )}
+          </div>
+        </div>
+
+        {/* Tags */}
+        <div className="task-detail-section">
+          <label className="task-detail-label">Tags</label>
+          <div className="task-tags-container">
+            {task.tags && task.tags.length > 0 ? (
+              task.tags.map((tag, index) => (
+                <span key={index} className="task-tag">
+                  <Tag size={12} style={{ marginRight: '4px' }} />
+                  {tag}
+                </span>
+              ))
+            ) : (
+              <span className="task-no-tags">No tags</span>
+            )}
+          </div>
+        </div>
+
+        {/* Dates Row */}
+        <div className="task-detail-row">
+          <div className="task-detail-section">
+            <label className="task-detail-label">Created</label>
+            <div className="task-detail-value task-date">
+              <Calendar size={14} /> {formatDate(task.createdAt)}
+            </div>
+          </div>
+
+          <div className="task-detail-section">
+            <label className="task-detail-label">Due Date</label>
+            <div className="task-detail-value task-date">
+              <Calendar size={14} /> {task.dueDate ? formatDate(task.dueDate) : 'Not set'}
+            </div>
+          </div>
+        </div>
+
+        {/* Source Activity Timeline */}
+        {fullTaskData?.logs && fullTaskData.logs.length > 0 && (
+          <div className="task-detail-section" style={{ marginTop: '24px' }}>
+            <label className="task-detail-label">Task Origin Timeline</label>
+            <Timeline
+              createdAt={fullTaskData.logs[0].createdAt}
+              analyzedAt={fullTaskData.logs[0].analyzedAt}
+              isClassified={fullTaskData.logs[0].isClassified}
+              isTask={fullTaskData.logs[0].isTask}
+              taskTitle={task.title}
+            />
+          </div>
+        )}
+
+        {/* Action Buttons - Keep for Editing State */}
+        {isEditing && (
+          <div className="task-details-actions">
+            <button
+              onClick={() => {
+                setEditedTask(task);
+                setIsEditing(false);
+              }}
+              className="task-action-button secondary"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={loading}
+              className="task-action-button primary"
+            >
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

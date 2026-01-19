@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
+import { ClipboardList, Loader2, AlertTriangle, FileText, Calendar, User } from 'lucide-react';
 
 export default function TaskList({ tasks, loading, error, onTaskClick, activeIndex }) {
   const activeItemRef = useRef(null);
@@ -14,8 +15,12 @@ export default function TaskList({ tasks, loading, error, onTaskClick, activeInd
   if (loading) {
     return (
       <div className="task-list">
-        <h2>📋 Tasks</h2>
-        <div className="loading">✨ Loading tasks...</div>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <ClipboardList size={22} /> Tasks
+        </h2>
+        <div className="loading">
+          <Loader2 className="animate-spin" size={20} /> Loading tasks...
+        </div>
       </div>
     );
   }
@@ -23,8 +28,12 @@ export default function TaskList({ tasks, loading, error, onTaskClick, activeInd
   if (error) {
     return (
       <div className="task-list">
-        <h2>📋 Tasks</h2>
-        <div className="error">⚠️ {error}</div>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <ClipboardList size={22} /> Tasks
+        </h2>
+        <div className="error">
+          <AlertTriangle size={20} /> {error}
+        </div>
       </div>
     );
   }
@@ -41,13 +50,15 @@ export default function TaskList({ tasks, loading, error, onTaskClick, activeInd
   return (
     <div className="task-list">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2>📋 Tasks <span className="task-count">{tasks.length}</span></h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+          <ClipboardList size={22} /> Tasks <span className="task-count">{tasks.length}</span>
+        </h2>
         <div style={{ fontSize: '12px', color: '#6b7280' }}>Use ↑↓ and Enter to navigate</div>
       </div>
 
       {tasks.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">📝</div>
+          <div className="empty-state-icon"><FileText size={48} /></div>
           <div className="empty-state-text">
             No tasks found. Try a different search or create a new task!
           </div>

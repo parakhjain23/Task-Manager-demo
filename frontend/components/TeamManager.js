@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Users, UserPlus, Trash2, Loader2, X, Briefcase } from 'lucide-react';
 
 export default function TeamManager() {
   const [teamMembers, setTeamMembers] = useState([]);
@@ -88,8 +89,12 @@ export default function TeamManager() {
   if (loading) {
     return (
       <div className="team-manager">
-        <h2>👥 Team Members</h2>
-        <div className="loading">✨ Loading team...</div>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Users size={22} /> Team Members
+        </h2>
+        <div className="loading">
+          <Loader2 className="animate-spin" size={20} /> Loading team...
+        </div>
       </div>
     );
   }
@@ -97,15 +102,16 @@ export default function TeamManager() {
   return (
     <div className="team-manager">
       <div className="team-header">
-        <h2>
-          <span className="team-icon">👥</span>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+          <Users size={24} className="team-icon-lucide" />
           Team Members ({teamMembers.length})
         </h2>
         <button
           onClick={() => setShowForm(!showForm)}
           className="btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
         >
-          {showForm ? '✕ Cancel' : '+ Add Member'}
+          {showForm ? <><X size={16} /> Cancel</> : <><UserPlus size={16} /> Add Member</>}
         </button>
       </div>
 
@@ -155,7 +161,7 @@ export default function TeamManager() {
 
       {teamMembers.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">👥</div>
+          <div className="empty-state-icon"><Users size={48} /></div>
           <div className="empty-state-text">
             No team members yet. Add your first team member to start assigning tasks!
           </div>
@@ -176,7 +182,7 @@ export default function TeamManager() {
                   className="btn-delete"
                   title="Remove team member"
                 >
-                  ×
+                  <Trash2 size={16} />
                 </button>
               </div>
 

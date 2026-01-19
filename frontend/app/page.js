@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Search, X, SendHorizontal, Loader2 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TaskList from '../components/TaskList';
 import LogsList from '../components/LogsList';
@@ -329,7 +330,7 @@ export default function Home() {
           </div>
 
           <div className="search-container">
-            <span className="search-icon">🔍</span>
+            <span className="search-icon"><Search size={16} /></span>
             <input
               type="text"
               placeholder={`Search ${currentView === 'logs' ? 'work logs' : 'tasks'}...`}
@@ -343,7 +344,7 @@ export default function Home() {
                 onClick={() => setSearchQuery('')}
                 title="Clear search"
               >
-                ✕
+                <X size={14} />
               </button>
             )}
           </div>
@@ -372,7 +373,7 @@ export default function Home() {
                 disabled={chatLoading || !chatInput.trim()}
                 className="bottom-chatbot-send-button"
               >
-                {chatLoading ? '⋯' : '→'}
+                {chatLoading ? <Loader2 className="animate-spin" size={20} /> : <SendHorizontal size={20} />}
               </button>
             </form>
           </div>
