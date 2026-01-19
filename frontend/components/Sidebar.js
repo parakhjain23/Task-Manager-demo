@@ -1,19 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
-  MessageSquare,
   ClipboardList,
   Clock,
-  Users,
-  Trash2,
-  Star,
+  Lightbulb,
+  MessageSquare,
   Search,
-  Zap,
-  Plus,
+  Sparkles,
+  Star,
+  Trash2,
+  Users,
   X,
-  Sparkles
+  Zap
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function Sidebar({ onViewChange, currentView, onCustomViewRequest }) {
   const [showCustomView, setShowCustomView] = useState(false);
@@ -29,6 +29,7 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
     { id: 'tasks', label: 'All Tasks', icon: <ClipboardList size={18} /> },
     { id: 'pending', label: 'My Pending Tasks', icon: <Clock size={18} /> },
     { id: 'members', label: 'Team Members', icon: <Users size={18} /> },
+    { id: 'ideas', label: 'Proposed Ideas', icon: <Lightbulb size={18} /> },
     { id: 'deleted', label: 'Deleted Items', icon: <Trash2 size={18} /> }
   ];
 
@@ -271,7 +272,7 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
         <div className="sidebar-footer-info">
           <div className="sidebar-footer-label">
             <Zap size={14} style={{ marginRight: '6px', color: 'var(--primary)' }} />
-            AI Assistant
+            AI Driven workspace
           </div>
           <div className="sidebar-footer-status">
             <span className="status-indicator"></span>

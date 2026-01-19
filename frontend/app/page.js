@@ -9,6 +9,7 @@ import TeamManager from '../components/TeamManager';
 import TaskDetailsPanel from '../components/TaskDetailsPanel';
 import LogDetailsPanel from '../components/LogDetailsPanel';
 import ChatbotPanel from '../components/ChatbotPanel';
+import IdeasList from '../components/IdeasList';
 import './globals.css';
 
 export default function Home() {
@@ -28,6 +29,20 @@ export default function Home() {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [chatbotToken, setChatbotToken] = useState(null);
   const [chatbotReady, setChatbotReady] = useState(false);
+
+  const [ideas, setIdeas] = useState([
+    { id: 1, text: 'Implementation of dark mode' },
+    { id: 2, text: 'Add real-time notifications' },
+    { id: 3, text: 'Mobile app version' }
+  ]);
+
+  const handleApproveIdea = (id) => {
+    setIdeas(prev => prev.filter(idea => idea.id !== id));
+  };
+
+  const handleRejectIdea = (id) => {
+    setIdeas(prev => prev.filter(idea => idea.id !== id));
+  };
 
 
 
@@ -273,6 +288,16 @@ export default function Home() {
       );
     }
 
+    if (currentView === 'ideas') {
+      return (
+        <IdeasList
+          ideas={ideas}
+          onApprove={handleApproveIdea}
+          onReject={handleRejectIdea}
+        />
+      );
+    }
+
     if (currentView === 'logs') {
       return (
         <LogsList
@@ -326,6 +351,7 @@ export default function Home() {
                 {currentView === 'pending' && 'My Pending Tasks'}
                 {currentView === 'tasks' && 'All Tasks'}
                 {currentView === 'deleted' && 'Deleted Items'}
+                {currentView === 'ideas' && 'Proposed Ideas'}
                 {currentView === 'custom' && customViewTitle}
               </h1>
               {currentView === 'deleted' && (
