@@ -7,6 +7,7 @@ import LogsList from '../components/LogsList';
 import TeamManager from '../components/TeamManager';
 import TaskDetailsPanel from '../components/TaskDetailsPanel';
 import LogDetailsPanel from '../components/LogDetailsPanel';
+import ChatbotPanel from '../components/ChatbotPanel';
 import './globals.css';
 
 export default function Home() {
@@ -24,6 +25,8 @@ export default function Home() {
   const [conversationHistory, setConversationHistory] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [chatbotToken, setChatbotToken] = useState(null);
+  const [chatbotReady, setChatbotReady] = useState(false);
 
 
 
@@ -84,6 +87,35 @@ export default function Home() {
       fetchTasks();
     }
   }, [currentView]);
+
+  // Global Chatbot initialization
+  useEffect(() => {
+    const initChatbot = async () => {
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+        const response = await fetch(`${API_URL}/utility/generate-chatbot-token`);
+        if (response.ok) {
+          const data = await response.json();
+          setChatbotToken(data.token);
+
+          // Inject script once token is available
+          if (!document.getElementById('chatbot-main-script')) {
+            const script = document.createElement('script');
+            script.id = 'chatbot-main-script';
+            script.src = 'https://chatbot-embed.viasocket.com/chatbot-prod.js';
+            script.setAttribute('embedToken', data.token);
+            script.setAttribute('bridgeName', 'task-manager');
+            script.onload = () => setChatbotReady(true);
+            document.body.appendChild(script);
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing global chatbot:', error);
+      }
+    };
+
+    initChatbot();
+  }, []);
 
   const handleViewChange = (view) => {
     setCurrentView(view);
@@ -281,7 +313,7 @@ export default function Home() {
           <div className="app-title">
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <h1>
-                {currentView === 'logs' && 'Work Items'}
+                {currentView === 'logs' && 'Work Logs'}
                 {currentView === 'members' && 'Team Members'}
                 {currentView === 'pending' && 'My Pending Tasks'}
                 {currentView === 'tasks' && 'All Tasks'}
@@ -300,7 +332,7 @@ export default function Home() {
             <span className="search-icon">🔍</span>
             <input
               type="text"
-              placeholder={`Search ${currentView === 'logs' ? 'work items' : 'tasks'}...`}
+              placeholder={`Search ${currentView === 'logs' ? 'work logs' : 'tasks'}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="search-input"
@@ -347,21 +379,50 @@ export default function Home() {
         )}
       </div>
 
+      {/* Panels Overlay */}
+      {(selectedTask || selectedLog) && (
+        <div
+          className="task-details-overlay"
+          onClick={() => {
+            setSelectedTask(null);
+            setSelectedLog(null);
+          }}
+        ></div>
+      )}
+
       {/* Task Details Panel */}
       {selectedTask && (
-        <TaskDetailsPanel
-          task={selectedTask}
-          onClose={() => setSelectedTask(null)}
-          onUpdate={handleTaskUpdate}
-        />
+        <>
+          <ChatbotPanel
+            isOpen={!!selectedTask}
+            onClose={() => setSelectedTask(null)}
+            itemId={selectedTask.id}
+            itemTitle={selectedTask.title}
+            isChatbotReady={chatbotReady}
+          />
+          <TaskDetailsPanel
+            task={selectedTask}
+            onClose={() => setSelectedTask(null)}
+            onUpdate={handleTaskUpdate}
+          />
+        </>
       )}
 
       {/* Log Details Panel */}
       {selectedLog && (
-        <LogDetailsPanel
-          log={selectedLog}
-          onClose={() => setSelectedLog(null)}
-        />
+        <>
+          <ChatbotPanel
+            isOpen={!!selectedLog}
+            onClose={() => setSelectedLog(null)}
+            itemId={selectedLog.id}
+            itemTitle={selectedLog.userInput?.substring(0, 30) + '...'}
+            isChatbotReady={chatbotReady}
+          />
+          <LogDetailsPanel
+            log={selectedLog}
+            onClose={() => setSelectedLog(null)}
+          />
+        </>
       )}
     </div>
   );

@@ -11,7 +11,7 @@ export default function LogsList({ logs, loading, error, onLogClick, activeIndex
     }
   }, [activeIndex]);
 
-  if (loading) return <div className="loading">Loading work items...</div>;
+  if (loading) return <div className="loading">Loading work logs...</div>;
   if (error) return <div className="error">{error}</div>;
 
   const truncateText = (text, maxLength) => {
@@ -33,14 +33,14 @@ export default function LogsList({ logs, loading, error, onLogClick, activeIndex
   return (
     <div className="task-list">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2>Work Items <span className="task-count">{logs.length}</span></h2>
+        <h2>Work Logs <span className="task-count">{logs.length}</span></h2>
         <div style={{ fontSize: '12px', color: '#6b7280' }}>Use ↑↓ and Enter to navigate</div>
       </div>
 
       {logs.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📝</div>
-          <div className="empty-state-text">No work items found. Use the chat to log your activities!</div>
+          <div className="empty-state-text">No work logs found. Use the chat to log your activities!</div>
         </div>
       ) : (
         logs.map((log, index) => {

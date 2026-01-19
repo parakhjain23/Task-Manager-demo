@@ -12,7 +12,7 @@ export default function Sidebar({ onViewChange, currentView, onCustomViewRequest
   const [saveName, setSaveName] = useState('');
 
   const menuItems = [
-    { id: 'logs', label: 'Work Items', icon: '💬' },
+    { id: 'logs', label: 'Work Logs', icon: '💬' },
     { id: 'tasks', label: 'All Tasks', icon: '📋' },
     { id: 'pending', label: 'My Pending Tasks', icon: '⏳' },
     { id: 'members', label: 'Team Members', icon: '👥' },
