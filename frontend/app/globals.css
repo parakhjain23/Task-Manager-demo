@@ -1327,20 +1327,6 @@ body {
 .task-details-panel {
   position: fixed;
   top: 0;
-  right: 0;
-  width: 420px;
-  height: 100vh;
-  background: var(--bg-card);
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  animation: slideInRight 0.3s ease-out;
-}
-
-.chatbot-panel {
-  position: fixed;
-  top: 0;
   right: 420px;
   width: 420px;
   height: 100vh;
@@ -1349,8 +1335,22 @@ body {
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  animation: slideInRight 0.35s ease-out;
+  animation: slideInRight 0.3s ease-out;
   border-right: 1px solid var(--border);
+}
+
+.chatbot-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 420px;
+  height: 100vh;
+  background: var(--bg-card);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.35s ease-out;
 }
 
 .chatbot-panel-header {
