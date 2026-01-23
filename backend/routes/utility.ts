@@ -1,9 +1,10 @@
-const express = require('express');
+import express, { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+
 const router = express.Router();
-const jwt = require('jsonwebtoken');
 
 // Route to generate JWT token for the chatbot
-router.get('/generate-chatbot-token', (req, res) => {
+router.get('/generate-chatbot-token', (req: Request, res: Response) => {
     // Static payload values as requested
     const org_id = "1289";
     const chatbot_id = "66596ae7f044de733e3ec7eb";
@@ -35,4 +36,4 @@ router.get('/generate-chatbot-token', (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

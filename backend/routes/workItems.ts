@@ -1,39 +1,11 @@
-const express = require('express');
-const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+import express, { Request, Response } from 'express';
+import { prisma } from '../config/database';
+import { stringifyBigInt } from '../utils/bigint';
 
-// Helper function to convert BigInt fields to strings
-const serializeWorkItem = (workItem) => ({
-  ...workItem,
-  id: workItem.id.toString(),
-  categoryId: workItem.categoryId.toString(),
-  assigneeId: workItem.assigneeId?.toString(),
-  createdBy: workItem.createdBy?.toString(),
-  updatedBy: workItem.updatedBy?.toString(),
-  category: workItem.category ? {
-    ...workItem.category,
-    id: workItem.category.id.toString(),
-    orgId: workItem.category.orgId.toString(),
-    createdBy: workItem.category.createdBy?.toString(),
-    updatedBy: workItem.category.updatedBy?.toString(),
-  } : undefined,
-  logs: workItem.logs?.map(log => ({
-    ...log,
-    id: log.id.toString(),
-    workItemId: log.workItemId.toString(),
-  })),
-  customFieldValues: workItem.customFieldValues?.map(cfv => ({
-    ...cfv,
-    id: cfv.id.toString(),
-    workItemId: cfv.workItemId.toString(),
-    customFieldMetaDataId: cfv.customFieldMetaDataId.toString(),
-    valueNumber: cfv.valueNumber?.toString(),
-  })),
-});
+const router = express.Router();
 
 // Create a new work item
-router.post('/', async (req, res) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const {
       externalId,
@@ -58,7 +30,7 @@ router.post('/', async (req, res) => {
 
     // Check if category exists
     const category = await prisma.category.findUnique({
-      where: { id: BigInt(categoryId) },
+      where: { id: BigInt(categoryId.toString()) },
     });
 
     if (!category) {
@@ -69,14 +41,14 @@ router.post('/', async (req, res) => {
     const workItem = await prisma.workItem.create({
       data: {
         externalId,
-        categoryId: BigInt(categoryId),
+        categoryId: BigInt(categoryId.toString()),
         title,
         description,
         status: status || 'CAPTURED',
         priority,
-        assigneeId: assigneeId ? BigInt(assigneeId) : null,
-        createdBy: createdBy ? BigInt(createdBy) : null,
-        updatedBy: createdBy ? BigInt(createdBy) : null,
+        assigneeId: assigneeId ? BigInt(assigneeId.toString()) : null,
+        createdBy: createdBy ? BigInt(createdBy.toString()) : null,
+        updatedBy: createdBy ? BigInt(createdBy.toString()) : null,
         startDate: startDate ? new Date(startDate) : null,
         dueDate: dueDate ? new Date(dueDate) : null,
       },
@@ -100,13 +72,13 @@ router.post('/', async (req, res) => {
         const { customFieldMetaDataId, value, calculatedBy } = field;
 
         const metaData = await prisma.customFieldMetaData.findUnique({
-          where: { id: BigInt(customFieldMetaDataId) },
+          where: { id: BigInt(customFieldMetaDataId.toString()) },
         });
 
         if (metaData) {
-          const valueData = {
+          const valueData: any = {
             workItemId: workItem.id,
-            customFieldMetaDataId: BigInt(customFieldMetaDataId),
+            customFieldMetaDataId: BigInt(customFieldMetaDataId.toString()),
             calculatedBy: calculatedBy || 'user',
           };
 
@@ -148,7 +120,7 @@ router.post('/', async (req, res) => {
       },
     });
 
-    res.status(201).json(serializeWorkItem(completeWorkItem));
+    res.status(201).json(stringifyBigInt(completeWorkItem));
   } catch (error) {
     console.error('Error creating work item:', error);
     res.status(500).json({ error: 'Failed to create work item' });
@@ -156,7 +128,7 @@ router.post('/', async (req, res) => {
 });
 
 // Get all work items with filters
-router.get('/', async (req, res) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const {
       categoryId,
@@ -164,18 +136,18 @@ router.get('/', async (req, res) => {
       priority,
       assigneeId,
       orgId,
-      page = 1,
-      limit = 50,
+      page = '1',
+      limit = '50',
       search,
-    } = req.query;
+    } = req.query as any;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
-    const where = {};
+    const where: any = {};
 
     if (categoryId) {
-      where.categoryId = BigInt(categoryId);
+      where.categoryId = BigInt(categoryId.toString());
     }
 
     if (status) {
@@ -187,12 +159,12 @@ router.get('/', async (req, res) => {
     }
 
     if (assigneeId) {
-      where.assigneeId = BigInt(assigneeId);
+      where.assigneeId = BigInt(assigneeId.toString());
     }
 
     if (orgId) {
       where.category = {
-        orgId: BigInt(orgId),
+        orgId: BigInt(orgId.toString()),
       };
     }
 
@@ -225,7 +197,7 @@ router.get('/', async (req, res) => {
     ]);
 
     const response = {
-      workItems: workItems.map(serializeWorkItem),
+      workItems: stringifyBigInt(workItems),
       pagination: {
         total,
         page: parseInt(page),
@@ -242,13 +214,13 @@ router.get('/', async (req, res) => {
 });
 
 // Get a single work item by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
     const workItem = await prisma.workItem.findUnique({
       where: {
-        id: BigInt(id),
+        id: BigInt(id as string),
       },
       include: {
         category: true,
@@ -269,7 +241,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Work item not found' });
     }
 
-    res.json(serializeWorkItem(workItem));
+    res.json(stringifyBigInt(workItem));
   } catch (error) {
     console.error('Error fetching work item:', error);
     res.status(500).json({ error: 'Failed to fetch work item' });
@@ -277,7 +249,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Update a work item
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const {
@@ -294,27 +266,27 @@ router.put('/:id', async (req, res) => {
 
     // Fetch current work item for logging changes
     const currentWorkItem = await prisma.workItem.findUnique({
-      where: { id: BigInt(id) },
+      where: { id: BigInt(id as string) },
     });
 
     if (!currentWorkItem) {
       return res.status(404).json({ error: 'Work item not found' });
     }
 
-    const updateData = {};
+    const updateData: any = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (status !== undefined) updateData.status = status;
     if (priority !== undefined) updateData.priority = priority;
-    if (assigneeId !== undefined) updateData.assigneeId = assigneeId ? BigInt(assigneeId) : null;
-    if (updatedBy !== undefined) updateData.updatedBy = BigInt(updatedBy);
+    if (assigneeId !== undefined) updateData.assigneeId = assigneeId ? BigInt(assigneeId.toString()) : null;
+    if (updatedBy !== undefined) updateData.updatedBy = BigInt(updatedBy.toString());
     if (startDate !== undefined) updateData.startDate = startDate ? new Date(startDate) : null;
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
     if (externalId !== undefined) updateData.externalId = externalId;
 
     const workItem = await prisma.workItem.update({
       where: {
-        id: BigInt(id),
+        id: BigInt(id as string),
       },
       data: updateData,
       include: {
@@ -345,7 +317,7 @@ router.put('/:id', async (req, res) => {
     }
 
     // Log other field updates
-    const changedFields = [];
+    const changedFields: string[] = [];
     if (title && title !== currentWorkItem.title) changedFields.push('title');
     if (description && description !== currentWorkItem.description) changedFields.push('description');
     if (priority && priority !== currentWorkItem.priority) changedFields.push('priority');
@@ -360,8 +332,8 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    res.json(serializeWorkItem(workItem));
-  } catch (error) {
+    res.json(stringifyBigInt(workItem));
+  } catch (error: any) {
     console.error('Error updating work item:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Work item not found' });
@@ -371,27 +343,27 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete a work item
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
     // Delete related records first
     await prisma.customFieldValue.deleteMany({
-      where: { workItemId: BigInt(id) },
+      where: { workItemId: BigInt(id as string) },
     });
 
     await prisma.workItemLog.deleteMany({
-      where: { workItemId: BigInt(id) },
+      where: { workItemId: BigInt(id as string) },
     });
 
     await prisma.workItem.delete({
       where: {
-        id: BigInt(id),
+        id: BigInt(id as string),
       },
     });
 
     res.json({ message: 'Work item deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting work item:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Work item not found' });
@@ -400,4 +372,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

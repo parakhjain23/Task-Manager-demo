@@ -1,12 +1,13 @@
-const express = require('express');
+import express, { Request, Response } from 'express';
+import { generateChatResponse } from '../services/aiService';
+
 const router = express.Router();
-const { generateChatResponse } = require('../services/aiService');
 
 /**
  * POST /api/chat
  * Handle general chat messages
  */
-router.post('/', async (req, res) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { message, context } = req.body;
 
@@ -23,4 +24,4 @@ router.post('/', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -1,16 +1,16 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const { connectDB } = require('./config/database');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import { connectDB } from './config/database';
 
 // Import routes
-const categoriesRoutes = require('./routes/categories');
-const workItemsRoutes = require('./routes/workItems');
-const customFieldsRoutes = require('./routes/customFields');
-const workItemLogsRoutes = require('./routes/workItemLogs');
-const categoryFollowersRoutes = require('./routes/categoryFollowers');
-const chatRoutes = require('./routes/chat');
-const utilityRoutes = require('./routes/utility.js');
+import categoriesRoutes from './routes/categories';
+import workItemsRoutes from './routes/workItems';
+import customFieldsRoutes from './routes/customFields';
+import workItemLogsRoutes from './routes/workItemLogs';
+import categoryFollowersRoutes from './routes/categoryFollowers';
+import chatRoutes from './routes/chat';
+import utilityRoutes from './routes/utility';
 
 const app = express();
 const PORT = process.env.PORT || 5000;

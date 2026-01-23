@@ -12,45 +12,46 @@ import IdeasList from '../components/IdeasList';
 import FilterBar from '../components/FilterBar';
 import CreateCategoryModal from '../components/CreateCategoryModal';
 import './globals.css';
+import { WorkItem, Log, Category, Idea, ViewType } from '../types';
 
 export default function Home() {
-  const [workItems, setWorkItems] = useState([]);
-  const [logs, setLogs] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [currentView, setCurrentView] = useState('work-items');
-  const [selectedWorkItem, setSelectedWorkItem] = useState(null);
-  const [selectedLog, setSelectedLog] = useState(null);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [logs, setLogs] = useState<Log[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<ViewType>('work-items');
+  const [selectedWorkItem, setSelectedWorkItem] = useState<WorkItem | null>(null);
+  const [selectedLog, setSelectedLog] = useState<Log | null>(null);
 
-  const [workItemInput, setWorkItemInput] = useState('');
-  const [createLoading, setCreateLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const [chatbotToken, setChatbotToken] = useState(null);
-  const [chatbotReady, setChatbotReady] = useState(false);
+  const [workItemInput, setWorkItemInput] = useState<string>('');
+  const [createLoading, setCreateLoading] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activeIndex, setActiveIndex] = useState<number>(-1);
+  const [chatbotToken, setChatbotToken] = useState<string | null>(null);
+  const [chatbotReady, setChatbotReady] = useState<boolean>(false);
 
   // Filter states
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
-  const [showCreateCategory, setShowCreateCategory] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [showCreateCategory, setShowCreateCategory] = useState<boolean>(false);
 
   // Assume orgId is passed from authentication or environment
   const orgId = process.env.NEXT_PUBLIC_ORG_ID || '1';
   const userId = process.env.NEXT_PUBLIC_USER_ID || '1'; // For createdBy
 
-  const [ideas, setIdeas] = useState([
+  const [ideas, setIdeas] = useState<Idea[]>([
     { id: 1, text: 'Implementation of dark mode' },
     { id: 2, text: 'Add real-time notifications' },
     { id: 3, text: 'Mobile app version' }
   ]);
 
-  const handleApproveIdea = (id) => {
+  const handleApproveIdea = (id: number) => {
     setIdeas(prev => prev.filter(idea => idea.id !== id));
   };
 
-  const handleRejectIdea = (id) => {
+  const handleRejectIdea = (id: number) => {
     setIdeas(prev => prev.filter(idea => idea.id !== id));
   };
 
@@ -71,7 +72,7 @@ export default function Home() {
       if (!selectedCategory && data.length > 0) {
         setSelectedCategory(data[0].id);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching categories:', err);
     }
   };
@@ -106,7 +107,7 @@ export default function Home() {
 
       const data = await response.json();
       setWorkItems(data.workItems || data);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       console.error('Error fetching work items:', err);
     } finally {
@@ -136,7 +137,7 @@ export default function Home() {
 
       const data = await response.json();
       setLogs(data.logs || data);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       console.error('Error fetching logs:', err);
     } finally {
@@ -193,7 +194,7 @@ export default function Home() {
     initChatbot();
   }, []);
 
-  const handleViewChange = (view) => {
+  const handleViewChange = (view: ViewType) => {
     setCurrentView(view);
     setSearchQuery('');
     // Reset filters when changing views (but not categories)
@@ -203,22 +204,22 @@ export default function Home() {
     }
   };
 
-  const handleCategoryChange = (categoryId) => {
+  const handleCategoryChange = (categoryId: string) => {
     setSelectedCategory(categoryId);
   };
 
-  const handleWorkItemClick = (workItem) => {
+  const handleWorkItemClick = (workItem: WorkItem) => {
     setSelectedWorkItem(workItem);
   };
 
-  const handleLogClick = (log) => {
+  const handleLogClick = (log: Log) => {
     setSelectedLog(log);
   };
 
-  const handleWorkItemUpdate = (updatedWorkItem, isDeleted = false) => {
+  const handleWorkItemUpdate = (updatedWorkItem: WorkItem, isDeleted = false) => {
     if (isDeleted) {
       // Remove deleted work item
-      setWorkItems(prev => prev.filter(wi => wi.id !== selectedWorkItem.id));
+      setWorkItems(prev => prev.filter(wi => wi.id !== selectedWorkItem?.id));
       setSelectedWorkItem(null);
     } else if (updatedWorkItem) {
       // Update the work item in the list
@@ -227,7 +228,7 @@ export default function Home() {
     }
   };
 
-  const handleCreateWorkItem = async (e) => {
+  const handleCreateWorkItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!workItemInput.trim() || createLoading) return;
 
@@ -269,7 +270,7 @@ export default function Home() {
     }
   };
 
-  const handleCategoryCreated = (newCategory) => {
+  const handleCategoryCreated = (newCategory: Category) => {
     setCategories(prev => [newCategory, ...prev]);
     setSelectedCategory(newCategory.id);
     setShowCreateCategory(false);
@@ -280,26 +281,26 @@ export default function Home() {
   const filteredLogs = logs.filter(log => {
     const searchLower = searchQuery.toLowerCase();
     return log.message?.toLowerCase().includes(searchLower) ||
-           log.workItem?.title?.toLowerCase().includes(searchLower);
+      log.workItem?.title?.toLowerCase().includes(searchLower);
   });
 
   // Keyboard navigation
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (selectedLog || selectedWorkItem) {
           setSelectedLog(null);
           setSelectedWorkItem(null);
           return;
         }
-        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-          document.activeElement.blur();
+        if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+          (document.activeElement as HTMLElement).blur();
           return;
         }
       }
 
       // Don't navigate if user is typing in an input or textarea
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+      if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
         return;
       }
 
@@ -315,9 +316,9 @@ export default function Home() {
         if (activeIndex >= 0 && activeIndex < items.length) {
           const selectedItem = items[activeIndex];
           if (currentView === 'logs') {
-            handleLogClick(selectedItem);
+            handleLogClick(selectedItem as Log);
           } else {
-            handleWorkItemClick(selectedItem);
+            handleWorkItemClick(selectedItem as WorkItem);
           }
         }
       }
@@ -326,11 +327,6 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentView, filteredLogs, filteredWorkItems, activeIndex, selectedLog, selectedWorkItem]);
-
-  // Reset active index when view or search changes
-  useEffect(() => {
-    setActiveIndex(-1);
-  }, [currentView, searchQuery]);
 
   const renderContent = () => {
     if (currentView === 'ideas') {

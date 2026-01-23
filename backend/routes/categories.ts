@@ -1,10 +1,11 @@
-const express = require('express');
+import express, { Request, Response } from 'express';
+import { prisma } from '../config/database';
+import { stringifyBigInt } from '../utils/bigint';
+
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 
 // Create a new category
-router.post('/', async (req, res) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { orgId, keyName, externalTool, name, createdBy } = req.body;
 
@@ -17,26 +18,17 @@ router.post('/', async (req, res) => {
 
     const category = await prisma.category.create({
       data: {
-        orgId: BigInt(orgId),
+        orgId: BigInt(orgId.toString()),
         keyName,
         externalTool,
         name,
-        createdBy: createdBy ? BigInt(createdBy) : null,
-        updatedBy: createdBy ? BigInt(createdBy) : null,
+        createdBy: createdBy ? BigInt(createdBy.toString()) : null,
+        updatedBy: createdBy ? BigInt(createdBy.toString()) : null,
       },
     });
 
-    // Convert BigInt to string for JSON serialization
-    const response = {
-      ...category,
-      id: category.id.toString(),
-      orgId: category.orgId.toString(),
-      createdBy: category.createdBy?.toString(),
-      updatedBy: category.updatedBy?.toString(),
-    };
-
-    res.status(201).json(response);
-  } catch (error) {
+    res.status(201).json(stringifyBigInt(category));
+  } catch (error: any) {
     console.error('Error creating category:', error);
     if (error.code === 'P2002') {
       return res.status(409).json({
@@ -48,13 +40,13 @@ router.post('/', async (req, res) => {
 });
 
 // Get all categories for an organization
-router.get('/org/:orgId', async (req, res) => {
+router.get('/org/:orgId', async (req: Request, res: Response) => {
   try {
     const { orgId } = req.params;
 
     const categories = await prisma.category.findMany({
       where: {
-        orgId: BigInt(orgId),
+        orgId: BigInt(orgId as string),
       },
       include: {
         _count: {
@@ -69,16 +61,7 @@ router.get('/org/:orgId', async (req, res) => {
       },
     });
 
-    // Convert BigInt to string for JSON serialization
-    const response = categories.map(category => ({
-      ...category,
-      id: category.id.toString(),
-      orgId: category.orgId.toString(),
-      createdBy: category.createdBy?.toString(),
-      updatedBy: category.updatedBy?.toString(),
-    }));
-
-    res.json(response);
+    res.json(stringifyBigInt(categories));
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Failed to fetch categories' });
@@ -86,13 +69,13 @@ router.get('/org/:orgId', async (req, res) => {
 });
 
 // Get a single category by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
     const category = await prisma.category.findUnique({
       where: {
-        id: BigInt(id),
+        id: BigInt(id as string),
       },
       include: {
         workItems: {
@@ -110,38 +93,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Category not found' });
     }
 
-    // Convert BigInt to string for JSON serialization
-    const response = {
-      ...category,
-      id: category.id.toString(),
-      orgId: category.orgId.toString(),
-      createdBy: category.createdBy?.toString(),
-      updatedBy: category.updatedBy?.toString(),
-      workItems: category.workItems.map(wi => ({
-        ...wi,
-        id: wi.id.toString(),
-        categoryId: wi.categoryId.toString(),
-        assigneeId: wi.assigneeId?.toString(),
-        createdBy: wi.createdBy?.toString(),
-        updatedBy: wi.updatedBy?.toString(),
-      })),
-      customFieldMetaData: category.customFieldMetaData.map(cf => ({
-        ...cf,
-        id: cf.id.toString(),
-        orgId: cf.orgId.toString(),
-        categoryId: cf.categoryId.toString(),
-        createdBy: cf.createdBy?.toString(),
-        updatedBy: cf.updatedBy?.toString(),
-      })),
-      followers: category.followers.map(f => ({
-        ...f,
-        id: f.id.toString(),
-        categoryId: f.categoryId.toString(),
-        userId: f.userId.toString(),
-      })),
-    };
-
-    res.json(response);
+    res.json(stringifyBigInt(category));
   } catch (error) {
     console.error('Error fetching category:', error);
     res.status(500).json({ error: 'Failed to fetch category' });
@@ -149,34 +101,25 @@ router.get('/:id', async (req, res) => {
 });
 
 // Update a category
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { name, externalTool, updatedBy } = req.body;
 
-    const updateData = {};
+    const updateData: any = {};
     if (name) updateData.name = name;
     if (externalTool !== undefined) updateData.externalTool = externalTool;
-    if (updatedBy) updateData.updatedBy = BigInt(updatedBy);
+    if (updatedBy) updateData.updatedBy = BigInt(updatedBy.toString());
 
     const category = await prisma.category.update({
       where: {
-        id: BigInt(id),
+        id: BigInt(id as string),
       },
       data: updateData,
     });
 
-    // Convert BigInt to string for JSON serialization
-    const response = {
-      ...category,
-      id: category.id.toString(),
-      orgId: category.orgId.toString(),
-      createdBy: category.createdBy?.toString(),
-      updatedBy: category.updatedBy?.toString(),
-    };
-
-    res.json(response);
-  } catch (error) {
+    res.json(stringifyBigInt(category));
+  } catch (error: any) {
     console.error('Error updating category:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Category not found' });
@@ -186,14 +129,14 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete a category
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
     // Check if category has work items
     const workItemCount = await prisma.workItem.count({
       where: {
-        categoryId: BigInt(id),
+        categoryId: BigInt(id as string),
       },
     });
 
@@ -206,12 +149,12 @@ router.delete('/:id', async (req, res) => {
 
     await prisma.category.delete({
       where: {
-        id: BigInt(id),
+        id: BigInt(id as string),
       },
     });
 
     res.json({ message: 'Category deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting category:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Category not found' });
@@ -220,4 +163,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

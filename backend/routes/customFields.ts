@@ -1,49 +1,15 @@
-const express = require('express');
+import express, { Request, Response } from 'express';
+import { prisma } from '../config/database';
+import { stringifyBigInt } from '../utils/bigint';
+
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-
-// Helper function to serialize custom field metadata
-const serializeCustomFieldMetaData = (field) => ({
-  ...field,
-  id: field.id.toString(),
-  orgId: field.orgId.toString(),
-  categoryId: field.categoryId.toString(),
-  createdBy: field.createdBy?.toString(),
-  updatedBy: field.updatedBy?.toString(),
-  category: field.category ? {
-    ...field.category,
-    id: field.category.id.toString(),
-    orgId: field.category.orgId.toString(),
-    createdBy: field.category.createdBy?.toString(),
-    updatedBy: field.category.updatedBy?.toString(),
-  } : undefined,
-});
-
-// Helper function to serialize custom field value
-const serializeCustomFieldValue = (value) => ({
-  ...value,
-  id: value.id.toString(),
-  workItemId: value.workItemId.toString(),
-  customFieldMetaDataId: value.customFieldMetaDataId.toString(),
-  valueNumber: value.valueNumber?.toString(),
-  customFieldMetaData: value.customFieldMetaData ? serializeCustomFieldMetaData(value.customFieldMetaData) : undefined,
-  workItem: value.workItem ? {
-    ...value.workItem,
-    id: value.workItem.id.toString(),
-    categoryId: value.workItem.categoryId.toString(),
-    assigneeId: value.workItem.assigneeId?.toString(),
-    createdBy: value.workItem.createdBy?.toString(),
-    updatedBy: value.workItem.updatedBy?.toString(),
-  } : undefined,
-});
 
 // ===============================
 // CUSTOM FIELD METADATA ROUTES
 // ===============================
 
 // Create a new custom field definition
-router.post('/metadata', async (req, res) => {
+router.post('/metadata', async (req: Request, res: Response) => {
   try {
     const {
       orgId,
@@ -74,7 +40,7 @@ router.post('/metadata', async (req, res) => {
 
     // Check if category exists
     const category = await prisma.category.findUnique({
-      where: { id: BigInt(categoryId) },
+      where: { id: BigInt(categoryId.toString()) },
     });
 
     if (!category) {
@@ -83,24 +49,24 @@ router.post('/metadata', async (req, res) => {
 
     const customField = await prisma.customFieldMetaData.create({
       data: {
-        orgId: BigInt(orgId),
-        categoryId: BigInt(categoryId),
+        orgId: BigInt(orgId.toString()),
+        categoryId: BigInt(categoryId.toString()),
         name,
         keyName,
         dataType,
         enums,
         description,
         meta,
-        createdBy: createdBy ? BigInt(createdBy) : null,
-        updatedBy: createdBy ? BigInt(createdBy) : null,
+        createdBy: createdBy ? BigInt(createdBy.toString()) : null,
+        updatedBy: createdBy ? BigInt(createdBy.toString()) : null,
       },
       include: {
         category: true,
       },
     });
 
-    res.status(201).json(serializeCustomFieldMetaData(customField));
-  } catch (error) {
+    res.status(201).json(stringifyBigInt(customField));
+  } catch (error: any) {
     console.error('Error creating custom field metadata:', error);
     if (error.code === 'P2002') {
       return res.status(409).json({
@@ -112,9 +78,9 @@ router.post('/metadata', async (req, res) => {
 });
 
 // Get all custom field definitions for an organization or category
-router.get('/metadata', async (req, res) => {
+router.get('/metadata', async (req: Request, res: Response) => {
   try {
-    const { orgId, categoryId } = req.query;
+    const { orgId, categoryId } = req.query as any;
 
     if (!orgId && !categoryId) {
       return res.status(400).json({
@@ -122,9 +88,9 @@ router.get('/metadata', async (req, res) => {
       });
     }
 
-    const where = {};
-    if (orgId) where.orgId = BigInt(orgId);
-    if (categoryId) where.categoryId = BigInt(categoryId);
+    const where: any = {};
+    if (orgId) where.orgId = BigInt(orgId.toString());
+    if (categoryId) where.categoryId = BigInt(categoryId.toString());
 
     const customFields = await prisma.customFieldMetaData.findMany({
       where,
@@ -141,7 +107,7 @@ router.get('/metadata', async (req, res) => {
       },
     });
 
-    res.json(customFields.map(serializeCustomFieldMetaData));
+    res.json(stringifyBigInt(customFields));
   } catch (error) {
     console.error('Error fetching custom field metadata:', error);
     res.status(500).json({ error: 'Failed to fetch custom field metadata' });
@@ -149,13 +115,13 @@ router.get('/metadata', async (req, res) => {
 });
 
 // Get a single custom field definition by ID
-router.get('/metadata/:id', async (req, res) => {
+router.get('/metadata/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
     const customField = await prisma.customFieldMetaData.findUnique({
       where: {
-        id: BigInt(id),
+        id: BigInt(id as string),
       },
       include: {
         category: true,
@@ -175,12 +141,7 @@ router.get('/metadata/:id', async (req, res) => {
       return res.status(404).json({ error: 'Custom field metadata not found' });
     }
 
-    const response = {
-      ...serializeCustomFieldMetaData(customField),
-      values: customField.values.map(serializeCustomFieldValue),
-    };
-
-    res.json(response);
+    res.json(stringifyBigInt(customField));
   } catch (error) {
     console.error('Error fetching custom field metadata:', error);
     res.status(500).json({ error: 'Failed to fetch custom field metadata' });
@@ -188,21 +149,21 @@ router.get('/metadata/:id', async (req, res) => {
 });
 
 // Update custom field definition
-router.put('/metadata/:id', async (req, res) => {
+router.put('/metadata/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { name, description, enums, meta, updatedBy } = req.body;
 
-    const updateData = {};
+    const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (enums !== undefined) updateData.enums = enums;
     if (meta !== undefined) updateData.meta = meta;
-    if (updatedBy) updateData.updatedBy = BigInt(updatedBy);
+    if (updatedBy) updateData.updatedBy = BigInt(updatedBy.toString());
 
     const customField = await prisma.customFieldMetaData.update({
       where: {
-        id: BigInt(id),
+        id: BigInt(id as string),
       },
       data: updateData,
       include: {
@@ -210,8 +171,8 @@ router.put('/metadata/:id', async (req, res) => {
       },
     });
 
-    res.json(serializeCustomFieldMetaData(customField));
-  } catch (error) {
+    res.json(stringifyBigInt(customField));
+  } catch (error: any) {
     console.error('Error updating custom field metadata:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Custom field metadata not found' });
@@ -221,24 +182,24 @@ router.put('/metadata/:id', async (req, res) => {
 });
 
 // Delete custom field definition (and all its values)
-router.delete('/metadata/:id', async (req, res) => {
+router.delete('/metadata/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
     // Delete all values first
     await prisma.customFieldValue.deleteMany({
-      where: { customFieldMetaDataId: BigInt(id) },
+      where: { customFieldMetaDataId: BigInt(id as string) },
     });
 
     // Delete metadata
     await prisma.customFieldMetaData.delete({
       where: {
-        id: BigInt(id),
+        id: BigInt(id as string),
       },
     });
 
     res.json({ message: 'Custom field metadata and all values deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting custom field metadata:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Custom field metadata not found' });
@@ -252,7 +213,7 @@ router.delete('/metadata/:id', async (req, res) => {
 // ===============================
 
 // Create or update a custom field value for a work item
-router.post('/values', async (req, res) => {
+router.post('/values', async (req: Request, res: Response) => {
   try {
     const {
       workItemId,
@@ -270,7 +231,7 @@ router.post('/values', async (req, res) => {
 
     // Get metadata to determine data type
     const metaData = await prisma.customFieldMetaData.findUnique({
-      where: { id: BigInt(customFieldMetaDataId) },
+      where: { id: BigInt(customFieldMetaDataId.toString()) },
     });
 
     if (!metaData) {
@@ -278,9 +239,9 @@ router.post('/values', async (req, res) => {
     }
 
     // Prepare value data based on data type
-    const valueData = {
-      workItemId: BigInt(workItemId),
-      customFieldMetaDataId: BigInt(customFieldMetaDataId),
+    const valueData: any = {
+      workItemId: BigInt(workItemId.toString()),
+      customFieldMetaDataId: BigInt(customFieldMetaDataId.toString()),
       calculatedBy: calculatedBy || 'user',
     };
 
@@ -303,8 +264,8 @@ router.post('/values', async (req, res) => {
     const customFieldValue = await prisma.customFieldValue.upsert({
       where: {
         workItemId_customFieldMetaDataId: {
-          workItemId: BigInt(workItemId),
-          customFieldMetaDataId: BigInt(customFieldMetaDataId),
+          workItemId: BigInt(workItemId.toString()),
+          customFieldMetaDataId: BigInt(customFieldMetaDataId.toString()),
         },
       },
       create: valueData,
@@ -315,7 +276,7 @@ router.post('/values', async (req, res) => {
       },
     });
 
-    res.status(201).json(serializeCustomFieldValue(customFieldValue));
+    res.status(201).json(stringifyBigInt(customFieldValue));
   } catch (error) {
     console.error('Error creating/updating custom field value:', error);
     res.status(500).json({ error: 'Failed to create/update custom field value' });
@@ -323,13 +284,13 @@ router.post('/values', async (req, res) => {
 });
 
 // Get all custom field values for a work item
-router.get('/values/work-item/:workItemId', async (req, res) => {
+router.get('/values/work-item/:workItemId', async (req: Request, res: Response) => {
   try {
     const { workItemId } = req.params;
 
     const values = await prisma.customFieldValue.findMany({
       where: {
-        workItemId: BigInt(workItemId),
+        workItemId: BigInt(workItemId as string),
       },
       include: {
         customFieldMetaData: true,
@@ -339,7 +300,7 @@ router.get('/values/work-item/:workItemId', async (req, res) => {
       },
     });
 
-    res.json(values.map(serializeCustomFieldValue));
+    res.json(stringifyBigInt(values));
   } catch (error) {
     console.error('Error fetching custom field values:', error);
     res.status(500).json({ error: 'Failed to fetch custom field values' });
@@ -347,18 +308,18 @@ router.get('/values/work-item/:workItemId', async (req, res) => {
 });
 
 // Delete a custom field value
-router.delete('/values/:id', async (req, res) => {
+router.delete('/values/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
     await prisma.customFieldValue.delete({
       where: {
-        id: BigInt(id),
+        id: BigInt(id as string),
       },
     });
 
     res.json({ message: 'Custom field value deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting custom field value:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Custom field value not found' });
@@ -367,4 +328,4 @@ router.delete('/values/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

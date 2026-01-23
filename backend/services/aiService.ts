@@ -1,4 +1,4 @@
-const OpenAI = require('openai');
+import OpenAI from 'openai';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -7,7 +7,7 @@ const openai = new OpenAI({
 /**
  * Generate AI response for chat
  */
-async function generateChatResponse(message, context = '') {
+export async function generateChatResponse(message: string, context: string = ''): Promise<string | null> {
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -26,7 +26,7 @@ async function generateChatResponse(message, context = '') {
     });
 
     return completion.choices[0].message.content;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating chat response:', error);
     console.error('Error details:', error.response?.data || error.message);
     if (error.response) {
@@ -35,7 +35,3 @@ async function generateChatResponse(message, context = '') {
     throw new Error(`Failed to generate response: ${error.message}`);
   }
 }
-
-module.exports = {
-  generateChatResponse
-};

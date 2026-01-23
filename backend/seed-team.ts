@@ -1,5 +1,5 @@
-require('dotenv').config();
-const { prisma } = require('./config/database');
+import 'dotenv/config';
+import { prisma } from './config/database';
 
 const teamMembers = [
   {
@@ -32,22 +32,29 @@ async function seedTeam() {
   try {
     console.log('Connecting to database...');
 
+    // Check if teamMember model exists in prisma
+    if (!(prisma as any).teamMember) {
+      console.warn('⚠️ teamMember model not found in Prisma schema. Skipping seeding.');
+      await prisma.$disconnect();
+      return;
+    }
+
     // Clear existing team members
-    await prisma.teamMember.deleteMany({});
+    await (prisma as any).teamMember.deleteMany({});
     console.log('Cleared existing team members');
 
     // Insert new team members
     for (const member of teamMembers) {
-      await prisma.teamMember.create({
-        data: member
+      await (prisma as any).teamMember.create({
+        data: member as any
       });
     }
     console.log(`✓ Successfully added ${teamMembers.length} team members`);
 
     // Display added members
-    const members = await prisma.teamMember.findMany();
+    const members = await (prisma as any).teamMember.findMany();
     console.log('\nTeam Members:');
-    members.forEach(member => {
+    members.forEach((member: any) => {
       console.log(`- ${member.name}: ${member.skills.join(', ')}`);
     });
 
