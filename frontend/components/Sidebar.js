@@ -2,321 +2,192 @@
 
 import {
   ClipboardList,
-  Clock,
   Lightbulb,
   MessageSquare,
-  Search,
-  Sparkles,
-  Star,
-  Trash2,
-  Users,
-  X,
-  Zap
+  Folder,
+  Plus,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-export default function Sidebar({ onViewChange, currentView, onCustomViewRequest }) {
-  const [showCustomView, setShowCustomView] = useState(false);
-  const [viewQuery, setViewQuery] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [savedViews, setSavedViews] = useState([]);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [viewToSave, setViewToSave] = useState(null);
-  const [saveName, setSaveName] = useState('');
+export default function Sidebar({
+  onViewChange,
+  currentView,
+  categories,
+  selectedCategory,
+  onCategoryChange,
+  onCreateCategory
+}) {
+  const [showCategories, setShowCategories] = useState(true);
 
   const menuItems = [
-    { id: 'logs', label: 'Work Logs', icon: <MessageSquare size={18} /> },
-    { id: 'tasks', label: 'All Tasks', icon: <ClipboardList size={18} /> },
-    { id: 'pending', label: 'My Pending Tasks', icon: <Clock size={18} /> },
-    { id: 'members', label: 'Team Members', icon: <Users size={18} /> },
-    { id: 'ideas', label: 'Proposed Ideas', icon: <Lightbulb size={18} /> },
-    { id: 'deleted', label: 'Deleted Items', icon: <Trash2 size={18} /> }
+    { id: 'work-items', label: 'All Work Items', icon: <ClipboardList size={18} /> },
+    { id: 'logs', label: 'Activity Logs', icon: <MessageSquare size={18} /> },
+    { id: 'ideas', label: 'Proposed Ideas', icon: <Lightbulb size={18} /> }
   ];
 
-  // Fetch saved views on component mount
-  useEffect(() => {
-    fetchSavedViews();
-  }, []);
-
-  const fetchSavedViews = async () => {
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const response = await fetch(`${API_URL}/views`);
-      const data = await response.json();
-      setSavedViews(data);
-    } catch (error) {
-      console.error('Error fetching saved views:', error);
-    }
-  };
-
-  const handleSavedViewClick = async (viewId) => {
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const response = await fetch(`${API_URL}/views/${viewId}`);
-      const data = await response.json();
-
-      if (response.ok) {
-        if (onCustomViewRequest) {
-          onCustomViewRequest(data.view?.name || 'Custom View', data.tasks);
-        }
-      } else {
-        alert(data.error || 'Failed to load view');
-      }
-    } catch (error) {
-      console.error('Error loading saved view:', error);
-      alert('Failed to load view. Please try again.');
-    }
-  };
-
-  const handleDeleteView = async (viewId, e) => {
-    e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this view?')) return;
-
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const response = await fetch(`${API_URL}/views/${viewId}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        fetchSavedViews();
-      }
-    } catch (error) {
-      console.error('Error deleting view:', error);
-      alert('Failed to delete view. Please try again.');
-    }
-  };
-
-  const handleCustomViewSubmit = async (e) => {
-    e.preventDefault();
-    if (!viewQuery.trim() || loading) return;
-
-    setLoading(true);
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const response = await fetch(`${API_URL}/dynamic-view`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: viewQuery,
-          currentUser: null
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        if (onCustomViewRequest) {
-          onCustomViewRequest(data.viewName, data.tasks);
-        }
-
-        // Ask if user wants to save this view
-        setViewToSave({
-          name: data.viewName,
-          query: viewQuery,
-          filters: data.filters
-        });
-        setShowSaveDialog(true);
-
-        setViewQuery('');
-        setShowCustomView(false);
-      } else {
-        alert(data.error || 'Failed to create custom view');
-      }
-    } catch (error) {
-      console.error('Error creating custom view:', error);
-      alert('Failed to create custom view. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSaveView = async () => {
-    if (!saveName.trim() || !viewToSave) return;
-
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const response = await fetch(`${API_URL}/views`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: saveName,
-          query: viewToSave.query,
-          filters: viewToSave.filters
-        })
-      });
-
-      if (response.ok) {
-        fetchSavedViews();
-        setShowSaveDialog(false);
-        setSaveName('');
-        setViewToSave(null);
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to save view');
-      }
-    } catch (error) {
-      console.error('Error saving view:', error);
-      alert('Failed to save view. Please try again.');
-    }
+  const handleCategoryClick = (categoryId) => {
+    // Switch to work-items view and select the category
+    onViewChange('work-items');
+    onCategoryChange(categoryId);
   };
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-        <div className="sidebar-logo">
-          <Sparkles size={24} className="logo-icon-lucide" />
-          <span className="logo-text">IntelliFlow</span>
-        </div>
-      </div>
-
+    <div className="sidebar">
       <nav className="sidebar-nav">
-        {menuItems.map((item) => (
-          <button
+        <div className="sidebar-log mb-4">
+          <div style={{ fontSize: '20px', fontWeight: '700' }}>Work Manager</div>
+        </div>
+        {/* Main Menu Items */}
+        {menuItems.map(item => (
+          <div
             key={item.id}
-            onClick={() => onViewChange(item.id)}
-            className={`sidebar-item ${currentView === item.id ? 'active' : ''}`}
+            className={`sidebar-item ${currentView === item.id && !selectedCategory ? 'active' : ''}`}
+            onClick={() => {
+              onViewChange(item.id);
+              if (item.id === 'work-items') {
+                onCategoryChange(null); // Show all work items
+              }
+            }}
           >
-            <span className="sidebar-item-icon">{item.icon}</span>
-            <span className="sidebar-item-label">{item.label}</span>
-          </button>
+            {item.icon}
+            <span>{item.label}</span>
+          </div>
         ))}
 
-        <div className="sidebar-divider"></div>
+        {/* Divider */}
+        <div style={{
+          height: '1px',
+          background: '#e2e8f0',
+          margin: '16px 0'
+        }}></div>
 
-        {/* Saved Views Section */}
-        {savedViews.length > 0 && (
-          <>
-            <div className="sidebar-section-label">Saved Views</div>
-            {savedViews.map((view) => (
-              <div key={view.id} className="saved-view-item">
-                <button
-                  onClick={() => handleSavedViewClick(view.id)}
-                  className="sidebar-item"
-                >
-                  <span className="sidebar-item-icon"><Star size={18} /></span>
-                  <span className="sidebar-item-label">{view.name}</span>
-                </button>
-                <button
-                  onClick={(e) => handleDeleteView(view.id, e)}
-                  className="delete-view-button"
-                  title="Delete view"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-            <div className="sidebar-divider"></div>
-          </>
-        )}
-
-        <button
-          onClick={() => setShowCustomView(!showCustomView)}
-          className={`sidebar-item ${showCustomView ? 'active' : ''}`}
-        >
-          <span className="sidebar-item-icon">
-            {showCustomView ? <X size={18} /> : <Search size={18} />}
-          </span>
-          <span className="sidebar-item-label">Create Custom View</span>
-        </button>
-
-        {showCustomView && (
-          <div className="custom-view-form">
-            <form onSubmit={handleCustomViewSubmit}>
-              <input
-                type="text"
-                value={viewQuery}
-                onChange={(e) => setViewQuery(e.target.value)}
-                placeholder="e.g., pending tasks from this week"
-                className="custom-view-input"
-                disabled={loading}
-                autoFocus
-              />
-              <button
-                type="submit"
-                className="custom-view-button"
-                disabled={loading || !viewQuery.trim()}
-              >
-                {loading ? 'Creating...' : 'Apply'}
-              </button>
-            </form>
-            <div className="custom-view-examples">
-              <div className="examples-label">Examples:</div>
-              <button
-                type="button"
-                onClick={() => setViewQuery('pending tasks created today')}
-                className="example-button"
-              >
-                Tasks created today
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewQuery('high priority tasks')}
-                className="example-button"
-              >
-                High priority tasks
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewQuery('tasks due this week')}
-                className="example-button"
-              >
-                Due this week
-              </button>
+        {/* Categories Section */}
+        <div>
+          <div
+            className="sidebar-section-header"
+            onClick={() => setShowCategories(!showCategories)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 16px',
+              fontSize: '12px',
+              fontWeight: '600',
+              color: '#64748b',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              cursor: 'pointer',
+              userSelect: 'none',
+              transition: 'all 0.2s'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Folder size={14} />
+              <span>Categories</span>
             </div>
+            {showCategories ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </div>
-        )}
+
+          {showCategories && (
+            <>
+              {/* Create Category Button */}
+              <div
+                onClick={onCreateCategory}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 16px',
+                  margin: '4px 12px',
+                  cursor: 'pointer',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  color: '#2563eb',
+                  background: '#eff6ff',
+                  border: '1px dashed #93c5fd',
+                  transition: 'all 0.2s',
+                  fontWeight: '500'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#dbeafe';
+                  e.currentTarget.style.borderColor = '#60a5fa';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#eff6ff';
+                  e.currentTarget.style.borderColor = '#93c5fd';
+                }}
+              >
+                <Plus size={16} />
+                <span>New Category</span>
+              </div>
+
+              {/* Categories List */}
+              {categories && categories.length > 0 ? (
+                categories.map(category => (
+                  <div
+                    key={category.id}
+                    className={`sidebar-item ${currentView === 'work-items' && selectedCategory === category.id ? 'active' : ''}`}
+                    onClick={() => handleCategoryClick(category.id)}
+                    style={{
+                      paddingLeft: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <Folder size={16} style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {category.name}
+                    </span>
+                    {category._count && category._count.workItems > 0 && (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          background: currentView === 'work-items' && selectedCategory === category.id ? '#3b82f6' : '#f1f5f9',
+                          color: currentView === 'work-items' && selectedCategory === category.id ? 'white' : '#64748b',
+                          padding: '2px 6px',
+                          borderRadius: '10px',
+                          fontWeight: '600',
+                          minWidth: '20px',
+                          textAlign: 'center'
+                        }}
+                      >
+                        {category._count.workItems}
+                      </span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div style={{
+                  padding: '12px 16px',
+                  fontSize: '13px',
+                  color: '#94a3b8',
+                  fontStyle: 'italic',
+                  textAlign: 'center'
+                }}>
+                  No categories yet
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </nav>
 
-      <div className="sidebar-footer">
-        <div className="sidebar-footer-info">
-          <div className="sidebar-footer-label">
-            <Zap size={14} style={{ marginRight: '6px', color: 'var(--primary)' }} />
-            AI Driven workspace
-          </div>
-          <div className="sidebar-footer-status">
-            <span className="status-indicator"></span>
-            <span>Active</span>
-          </div>
+      {/* Footer */}
+      <div style={{
+        marginTop: 'auto',
+        padding: '16px',
+        fontSize: '11px',
+        color: '#94a3b8',
+        borderTop: '1px solid #e2e8f0'
+      }}>
+        <div>Work Items Architecture v2.0</div>
+        <div style={{ marginTop: '4px' }}>
+          Press <kbd style={{ background: '#f1f5f9', padding: '2px 4px', borderRadius: '3px', fontSize: '10px' }}>?</kbd> for shortcuts
         </div>
       </div>
-
-      {/* Save View Dialog */}
-      {showSaveDialog && (
-        <div className="save-dialog-overlay" onClick={() => setShowSaveDialog(false)}>
-          <div className="save-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3 className="save-dialog-title">Save this view?</h3>
-            <p className="save-dialog-subtitle">Give your view a name to access it quickly later</p>
-            <input
-              type="text"
-              value={saveName}
-              onChange={(e) => setSaveName(e.target.value)}
-              placeholder={viewToSave?.name || "Enter view name"}
-              className="save-dialog-input"
-              autoFocus
-            />
-            <div className="save-dialog-actions">
-              <button
-                onClick={() => {
-                  setShowSaveDialog(false);
-                  setSaveName('');
-                  setViewToSave(null);
-                }}
-                className="save-dialog-button secondary"
-              >
-                Skip
-              </button>
-              <button
-                onClick={handleSaveView}
-                disabled={!saveName.trim()}
-                className="save-dialog-button primary"
-              >
-                Save View
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </aside>
+    </div>
   );
 }

@@ -1,34 +1,44 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, X, SendHorizontal, Loader2 } from 'lucide-react';
+import { Search, X, SendHorizontal, Loader2, Plus } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
-import TaskList from '../components/TaskList';
+import WorkItemList from '../components/WorkItemList';
 import LogsList from '../components/LogsList';
-import TeamManager from '../components/TeamManager';
-import TaskDetailsPanel from '../components/TaskDetailsPanel';
+import WorkItemDetailsPanel from '../components/WorkItemDetailsPanel';
 import LogDetailsPanel from '../components/LogDetailsPanel';
 import ChatbotPanel from '../components/ChatbotPanel';
 import IdeasList from '../components/IdeasList';
+import FilterBar from '../components/FilterBar';
+import CreateCategoryModal from '../components/CreateCategoryModal';
 import './globals.css';
 
 export default function Home() {
-  const [tasks, setTasks] = useState([]);
+  const [workItems, setWorkItems] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentView, setCurrentView] = useState('logs');
-  const [selectedTask, setSelectedTask] = useState(null);
+  const [currentView, setCurrentView] = useState('work-items');
+  const [selectedWorkItem, setSelectedWorkItem] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
-  const [customViewTitle, setCustomViewTitle] = useState('');
 
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-  const [conversationHistory, setConversationHistory] = useState([]);
+  const [workItemInput, setWorkItemInput] = useState('');
+  const [createLoading, setCreateLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(-1);
   const [chatbotToken, setChatbotToken] = useState(null);
   const [chatbotReady, setChatbotReady] = useState(false);
+
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [showCreateCategory, setShowCreateCategory] = useState(false);
+
+  // Assume orgId is passed from authentication or environment
+  const orgId = process.env.NEXT_PUBLIC_ORG_ID || '1';
+  const userId = process.env.NEXT_PUBLIC_USER_ID || '1'; // For createdBy
 
   const [ideas, setIdeas] = useState([
     { id: 1, text: 'Implementation of dark mode' },
@@ -44,25 +54,61 @@ export default function Home() {
     setIdeas(prev => prev.filter(idea => idea.id !== id));
   };
 
+  // Fetch categories for the organization
+  const fetchCategories = async () => {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const response = await fetch(`${API_URL}/categories/org/${orgId}`);
 
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
 
-  const fetchTasks = async () => {
+      const data = await response.json();
+      setCategories(data);
+
+      // Auto-select first category if none selected
+      if (!selectedCategory && data.length > 0) {
+        setSelectedCategory(data[0].id);
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    }
+  };
+
+  const fetchWorkItems = async () => {
     try {
       setLoading(true);
       setError(null);
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const endpoint = currentView === 'deleted' ? 'tasks/deleted' : 'tasks';
-      const response = await fetch(`${API_URL}/${endpoint}`);
+
+      // Build query params
+      const params = new URLSearchParams();
+      params.append('orgId', orgId);
+      if (selectedCategory) {
+        params.append('categoryId', selectedCategory);
+      }
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+      if (priorityFilter !== 'all') {
+        params.append('priority', priorityFilter);
+      }
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+
+      const response = await fetch(`${API_URL}/work-items?${params.toString()}`);
 
       if (!response.ok) {
-        throw new Error('Failed to fetch tasks');
+        throw new Error('Failed to fetch work items');
       }
 
       const data = await response.json();
-      setTasks(data);
+      setWorkItems(data.workItems || data);
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching tasks:', err);
+      console.error('Error fetching work items:', err);
     } finally {
       setLoading(false);
     }
@@ -75,14 +121,21 @@ export default function Home() {
       }
       setError(null);
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const response = await fetch(`${API_URL}/logs`);
+
+      // If category is selected, fetch logs for that category
+      let url = `${API_URL}/work-item-logs/type/ai_analysis`;
+      if (selectedCategory) {
+        url = `${API_URL}/work-item-logs/category/${selectedCategory}/timeline`;
+      }
+
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error('Failed to fetch logs');
       }
 
       const data = await response.json();
-      setLogs(data);
+      setLogs(data.logs || data);
     } catch (err) {
       setError(err.message);
       console.error('Error fetching logs:', err);
@@ -93,16 +146,22 @@ export default function Home() {
     }
   };
 
+  // Fetch categories on mount
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Fetch data when view, category, or filters change
   useEffect(() => {
     if (currentView === 'logs') {
-      fetchLogs(true); // Show loading on initial fetch
+      fetchLogs(true);
       // Poll for updates every 5 seconds without showing loading state
       const interval = setInterval(() => fetchLogs(false), 5000);
       return () => clearInterval(interval);
-    } else if (currentView === 'tasks' || currentView === 'pending' || currentView === 'deleted') {
-      fetchTasks();
+    } else if (currentView === 'work-items') {
+      fetchWorkItems();
     }
-  }, [currentView]);
+  }, [currentView, selectedCategory, statusFilter, priorityFilter, searchQuery]);
 
   // Global Chatbot initialization
   useEffect(() => {
@@ -136,107 +195,101 @@ export default function Home() {
 
   const handleViewChange = (view) => {
     setCurrentView(view);
-    setCustomViewTitle('');
     setSearchQuery('');
+    // Reset filters when changing views (but not categories)
+    if (view !== 'work-items') {
+      setStatusFilter('all');
+      setPriorityFilter('all');
+    }
   };
 
-  const handleCustomViewRequest = (viewName, customTasks) => {
-    setCustomViewTitle(viewName);
-    setTasks(customTasks);
-    setCurrentView('custom');
+  const handleCategoryChange = (categoryId) => {
+    setSelectedCategory(categoryId);
   };
 
-  const handleTaskClick = (task) => {
-    setSelectedTask(task);
+  const handleWorkItemClick = (workItem) => {
+    setSelectedWorkItem(workItem);
   };
 
   const handleLogClick = (log) => {
     setSelectedLog(log);
   };
 
-  const handleTaskUpdate = (updatedTask, isDeleted = false) => {
+  const handleWorkItemUpdate = (updatedWorkItem, isDeleted = false) => {
     if (isDeleted) {
-      // Remove deleted task
-      setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
-    } else if (updatedTask) {
-      // Update the task in the list
-      setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
-      setSelectedTask(updatedTask);
+      // Remove deleted work item
+      setWorkItems(prev => prev.filter(wi => wi.id !== selectedWorkItem.id));
+      setSelectedWorkItem(null);
+    } else if (updatedWorkItem) {
+      // Update the work item in the list
+      setWorkItems(prev => prev.map(wi => wi.id === updatedWorkItem.id ? updatedWorkItem : wi));
+      setSelectedWorkItem(updatedWorkItem);
     }
   };
 
-  const handleChatSubmit = async (e) => {
+  const handleCreateWorkItem = async (e) => {
     e.preventDefault();
-    if (!chatInput.trim() || chatLoading) return;
+    if (!workItemInput.trim() || createLoading) return;
 
-    const userMessage = chatInput.trim();
-    setChatInput('');
-
-    // Build conversation history with task context if available
-    let contextMessage = userMessage;
-    if (selectedTask) {
-      contextMessage = `[Task Context: "${selectedTask.title}" - ${selectedTask.status}, Priority: ${selectedTask.priority}]\nUser: ${userMessage}`;
+    if (!selectedCategory) {
+      alert('Please select a category first');
+      return;
     }
 
-    const updatedHistory = [
-      ...conversationHistory,
-      { role: 'user', content: contextMessage }
-    ];
-    setConversationHistory(updatedHistory);
+    const title = workItemInput.trim();
+    setWorkItemInput('');
+    setCreateLoading(true);
 
-    setChatLoading(true);
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      const response = await fetch(`${API_URL}/conversation`, {
+      const response = await fetch(`${API_URL}/work-items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          conversationHistory: updatedHistory
+          categoryId: selectedCategory,
+          title: title,
+          description: '',
+          status: 'CAPTURED',
+          createdBy: userId
         })
       });
 
       if (response.ok) {
-        const data = await response.json();
-
-        // Add the new log to the logs list if we're in logs view
-        if (data.log && currentView === 'logs') {
-          setLogs(prev => [data.log, ...prev]);
-        }
+        const newWorkItem = await response.json();
+        setWorkItems(prev => [newWorkItem, ...prev]);
       } else {
         const errorData = await response.json();
-        console.error('Error:', errorData.error || 'Failed to process request.');
+        alert(errorData.error || 'Failed to create work item');
       }
     } catch (error) {
-      console.error('Error chatting:', error);
+      console.error('Error creating work item:', error);
+      alert('Failed to create work item. Please try again.');
     } finally {
-      setChatLoading(false);
+      setCreateLoading(false);
     }
   };
 
-  const filteredTasks = tasks.filter(task => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      task.title?.toLowerCase().includes(searchLower) ||
-      task.description?.toLowerCase().includes(searchLower) ||
-      task.tags?.some(tag => tag.toLowerCase().includes(searchLower)) ||
-      task.assignedTo?.toLowerCase().includes(searchLower)
-    );
-  });
+  const handleCategoryCreated = (newCategory) => {
+    setCategories(prev => [newCategory, ...prev]);
+    setSelectedCategory(newCategory.id);
+    setShowCreateCategory(false);
+  };
+
+  const filteredWorkItems = workItems;
 
   const filteredLogs = logs.filter(log => {
     const searchLower = searchQuery.toLowerCase();
-    return log.userInput?.toLowerCase().includes(searchLower);
+    return log.message?.toLowerCase().includes(searchLower) ||
+           log.workItem?.title?.toLowerCase().includes(searchLower);
   });
-
-  const pendingTasks = filteredTasks.filter(task => task.status === 'pending');
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (selectedLog || selectedTask) {
+        if (selectedLog || selectedWorkItem) {
           setSelectedLog(null);
-          setSelectedTask(null);
+          setSelectedWorkItem(null);
           return;
         }
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
@@ -250,7 +303,7 @@ export default function Home() {
         return;
       }
 
-      const items = currentView === 'logs' ? filteredLogs : (currentView === 'pending' ? pendingTasks : filteredTasks);
+      const items = currentView === 'logs' ? filteredLogs : filteredWorkItems;
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -264,7 +317,7 @@ export default function Home() {
           if (currentView === 'logs') {
             handleLogClick(selectedItem);
           } else {
-            handleTaskClick(selectedItem);
+            handleWorkItemClick(selectedItem);
           }
         }
       }
@@ -272,7 +325,7 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentView, filteredLogs, filteredTasks, pendingTasks, activeIndex, selectedLog, selectedTask]);
+  }, [currentView, filteredLogs, filteredWorkItems, activeIndex, selectedLog, selectedWorkItem]);
 
   // Reset active index when view or search changes
   useEffect(() => {
@@ -280,14 +333,6 @@ export default function Home() {
   }, [currentView, searchQuery]);
 
   const renderContent = () => {
-    if (currentView === 'members') {
-      return (
-        <div className="full-width-content">
-          <TeamManager />
-        </div>
-      );
-    }
-
     if (currentView === 'ideas') {
       return (
         <IdeasList
@@ -310,26 +355,26 @@ export default function Home() {
       );
     }
 
-    if (currentView === 'pending') {
-      return (
-        <TaskList
-          tasks={pendingTasks}
+    return (
+      <>
+        <FilterBar
+          statusFilter={statusFilter}
+          priorityFilter={priorityFilter}
+          onStatusChange={setStatusFilter}
+          onPriorityChange={setPriorityFilter}
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onCategoryChange={handleCategoryChange}
+          onCreateCategory={() => setShowCreateCategory(true)}
+        />
+        <WorkItemList
+          workItems={filteredWorkItems}
           loading={loading}
           error={error}
-          onTaskClick={handleTaskClick}
+          onWorkItemClick={handleWorkItemClick}
           activeIndex={activeIndex}
         />
-      );
-    }
-
-    return (
-      <TaskList
-        tasks={filteredTasks}
-        loading={loading}
-        error={error}
-        onTaskClick={handleTaskClick}
-        activeIndex={activeIndex}
-      />
+      </>
     );
   };
 
@@ -338,7 +383,10 @@ export default function Home() {
       <Sidebar
         currentView={currentView}
         onViewChange={handleViewChange}
-        onCustomViewRequest={handleCustomViewRequest}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onCategoryChange={handleCategoryChange}
+        onCreateCategory={() => setShowCreateCategory(true)}
       />
 
       <div className="container">
@@ -346,67 +394,87 @@ export default function Home() {
           <div className="app-title">
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <h1>
-                {currentView === 'logs' && 'Work Logs'}
-                {currentView === 'members' && 'Team Members'}
-                {currentView === 'pending' && 'My Pending Tasks'}
-                {currentView === 'tasks' && 'All Tasks'}
-                {currentView === 'deleted' && 'Deleted Items'}
+                {currentView === 'logs' && 'Activity Logs'}
+                {currentView === 'work-items' && 'Work Items'}
                 {currentView === 'ideas' && 'Proposed Ideas'}
-                {currentView === 'custom' && customViewTitle}
               </h1>
-              {currentView === 'deleted' && (
+              {selectedCategory && categories.length > 0 && currentView === 'work-items' && (
                 <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '400', marginTop: '4px' }}>
-                  Items here can be recovered to your active list.
+                  {categories.find(c => c.id === selectedCategory)?.name}
                 </span>
               )}
             </div>
           </div>
 
-          <div className="search-container">
-            <span className="search-icon"><Search size={16} /></span>
-            <input
-              type="text"
-              placeholder={`Search ${currentView === 'logs' ? 'work logs' : 'tasks'}...`}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
-            {searchQuery && (
-              <button
-                className="search-clear"
-                onClick={() => setSearchQuery('')}
-                title="Clear search"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
+          {currentView === 'work-items' && (
+            <div className="search-container">
+              <span className="search-icon"><Search size={16} /></span>
+              <input
+                type="text"
+                placeholder="Search work items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="search-input"
+              />
+              {searchQuery && (
+                <button
+                  className="search-clear"
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {currentView === 'logs' && (
+            <div className="search-container">
+              <span className="search-icon"><Search size={16} /></span>
+              <input
+                type="text"
+                placeholder="Search logs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="search-input"
+              />
+              {searchQuery && (
+                <button
+                  className="search-clear"
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="header-badge">
-            {currentView === 'logs' ? 'AI Chat Assistant' : 'Task-specific AI Assistant'}
+            AI Assistant
           </div>
         </div>
 
         {renderContent()}
 
-        {/* Bottom Center Chatbot - Only in Logs view */}
-        {currentView === 'logs' && (
+        {/* Bottom Input - Work Items view */}
+        {currentView === 'work-items' && (
           <div className="bottom-chatbot-container">
-            {/* Chat Input Form */}
-            <form onSubmit={handleChatSubmit} className="bottom-chatbot-form">
+            <form onSubmit={handleCreateWorkItem} className="bottom-chatbot-form">
               <input
                 type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Log a message..."
+                value={workItemInput}
+                onChange={(e) => setWorkItemInput(e.target.value)}
+                placeholder="Create a work item..."
                 className="bottom-chatbot-input"
-                disabled={chatLoading}
+                disabled={createLoading || !selectedCategory}
               />
               <button
                 type="submit"
-                disabled={chatLoading || !chatInput.trim()}
+                disabled={createLoading || !workItemInput.trim() || !selectedCategory}
                 className="bottom-chatbot-send-button"
               >
-                {chatLoading ? <Loader2 className="animate-spin" size={20} /> : <SendHorizontal size={20} />}
+                {createLoading ? <Loader2 className="animate-spin" size={20} /> : <SendHorizontal size={20} />}
               </button>
             </form>
           </div>
@@ -414,31 +482,31 @@ export default function Home() {
       </div>
 
       {/* Panels Overlay */}
-      {(selectedTask || selectedLog) && (
+      {(selectedWorkItem || selectedLog) && (
         <div
           className="task-details-overlay"
           onClick={() => {
-            setSelectedTask(null);
+            setSelectedWorkItem(null);
             setSelectedLog(null);
           }}
         ></div>
       )}
 
-      {/* Task Details Panel */}
-      {selectedTask && (
+      {/* Work Item Details Panel */}
+      {selectedWorkItem && (
         <>
           <ChatbotPanel
-            isOpen={!!selectedTask}
-            onClose={() => setSelectedTask(null)}
-            itemId={selectedTask.id}
-            itemDetails={selectedTask}
-            itemTitle={selectedTask.title}
+            isOpen={!!selectedWorkItem}
+            onClose={() => setSelectedWorkItem(null)}
+            itemId={selectedWorkItem.id}
+            itemDetails={selectedWorkItem}
+            itemTitle={selectedWorkItem.title}
             isChatbotReady={chatbotReady}
           />
-          <TaskDetailsPanel
-            task={selectedTask}
-            onClose={() => setSelectedTask(null)}
-            onUpdate={handleTaskUpdate}
+          <WorkItemDetailsPanel
+            workItem={selectedWorkItem}
+            onClose={() => setSelectedWorkItem(null)}
+            onUpdate={handleWorkItemUpdate}
           />
         </>
       )}
@@ -451,7 +519,7 @@ export default function Home() {
             onClose={() => setSelectedLog(null)}
             itemId={selectedLog.id}
             itemDetails={selectedLog}
-            itemTitle={selectedLog.userInput?.substring(0, 30) + '...'}
+            itemTitle={selectedLog.message?.substring(0, 30) + '...'}
             isChatbotReady={chatbotReady}
           />
           <LogDetailsPanel
@@ -459,6 +527,16 @@ export default function Home() {
             onClose={() => setSelectedLog(null)}
           />
         </>
+      )}
+
+      {/* Create Category Modal */}
+      {showCreateCategory && (
+        <CreateCategoryModal
+          orgId={orgId}
+          userId={userId}
+          onClose={() => setShowCreateCategory(false)}
+          onCategoryCreated={handleCategoryCreated}
+        />
       )}
     </div>
   );

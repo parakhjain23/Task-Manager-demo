@@ -2,16 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { connectDB } = require('./config/database');
-const logClassifier = require('./services/logClassifier');
 
 // Import routes
-const taskRoutes = require('./routes/tasks');
-const teamRoutes = require('./routes/team');
+const categoriesRoutes = require('./routes/categories');
+const workItemsRoutes = require('./routes/workItems');
+const customFieldsRoutes = require('./routes/customFields');
+const workItemLogsRoutes = require('./routes/workItemLogs');
+const categoryFollowersRoutes = require('./routes/categoryFollowers');
 const chatRoutes = require('./routes/chat');
-const conversationRoutes = require('./routes/conversation');
-const dynamicViewRoutes = require('./routes/dynamic-view');
-const viewsRoutes = require('./routes/views');
-const logsRoutes = require('./routes/logs');
 const utilityRoutes = require('./routes/utility.js');
 
 const app = express();
@@ -25,13 +23,12 @@ app.use(express.json());
 connectDB();
 
 // Routes
-app.use('/api/tasks', taskRoutes);
-app.use('/api/team', teamRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/work-items', workItemsRoutes);
+app.use('/api/custom-fields', customFieldsRoutes);
+app.use('/api/work-item-logs', workItemLogsRoutes);
+app.use('/api/category-followers', categoryFollowersRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api/conversation', conversationRoutes);
-app.use('/api/dynamic-view', dynamicViewRoutes);
-app.use('/api/views', viewsRoutes);
-app.use('/api/logs', logsRoutes);
 app.use('/api/utility', utilityRoutes);
 
 // Health check
@@ -42,8 +39,5 @@ app.get('/api/health', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-
-  // Start background log classifier
-  logClassifier.start();
-  console.log('Background log classifier started');
+  console.log('Task Manager API ready with new architecture');
 });
